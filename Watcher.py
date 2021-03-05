@@ -6,7 +6,7 @@ from sopel import module
 from sseclient import SSEClient as EventSource
 
 
-DB = 'wiki.db'
+DB = '/home/ubuntu/.sopel/modules/wiki.db'
 
 
 def setup(bot):
@@ -29,7 +29,6 @@ def listener(bot, url, stop_event):
                         dispatch(bot, change)
                     except ValueError:
                         pass
-    bot.say("Listener stopped", "Operator873")
 
 
 def dispatch(bot, change):
@@ -360,10 +359,10 @@ def global_watch_add(name, command, chan):
             return response
         check = c.execute('''SELECT * FROM global_watch WHERE title="%s" AND nick="%s" AND channel="%s" AND namespace="%s";''' % (
             page, name, chan, namespace)).fetchone()
-        rePage, reNick, reChan, reNotify = check
-        response = name + ": I will report changes to " + page + " in namespace " + str(namespace) + " with no ping."
+        reTitle, reNamespace, reNick, reChan, reNotify = check
+        response = name + ": I will report changes to " + reTitle + " in namespace " + str(reNamespace) + " with no ping."
     else:
-        response = name + ": you are already watching " + page + " in namespace " + str(namespace) + " in this channel."
+        response = name + ": you are already watching " + reTitle + " in namespace " + str(reNamespace) + " in this channel."
 
     db.close()
     return response
@@ -505,7 +504,7 @@ def checkListener(bot):
 
         bot.memory['wikistream_listener'] = listen
         bot.memory['wikistream_listener'].start()
-        bot.say("Restarted listener", "Operator873")
+        # bot.say("Restarted listener", "Operator873")
     else:
         pass
 

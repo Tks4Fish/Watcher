@@ -362,7 +362,7 @@ def global_watch_add(name, command, chan):
         reTitle, reNamespace, reNick, reChan, reNotify = check
         response = name + ": I will report changes to " + reTitle + " in namespace " + str(reNamespace) + " with no ping."
     else:
-        response = name + ": you are already watching " + reTitle + " in namespace " + str(reNamespace) + " in this channel."
+        response = name + ": you are already watching " + page + " in namespace " + str(namespace) + " in this channel."
 
     db.close()
     return response

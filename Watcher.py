@@ -349,10 +349,10 @@ def global_watch_add(name, command, chan):
     switch, action, namespace, page = command.split(' ', 3)
 
     pageExists = c.execute(
-        '''SELECT * from global_watch WHERE title="%s" AND nick="%s" AND channel="%s AND namespace="%s";''' % (page, name, chan, namespace)).fetchone()
+        '''SELECT * from global_watch WHERE title="%s" AND nick="%s" AND channel="%s AND namespace="%s";''' % (page, name, chan, str(namespace))).fetchone()
     if pageExists is None:
         try:
-            c.execute('''INSERT INTO global_watch VALUES("%s", "%s", "%s", "%s", "off");''' % (page, namespace, name, chan))
+            c.execute('''INSERT INTO global_watch VALUES("%s", "%s", "%s", "%s", "off");''' % (page, str(namespace), name, chan))
             db.commit()
         except Exception as e:
             response = "Ugh... Something blew up adding the page to the table: " + str(e) + ". Operator873 help me."
@@ -361,9 +361,9 @@ def global_watch_add(name, command, chan):
         check = c.execute('''SELECT * FROM global_watch WHERE title="%s" AND nick="%s" AND channel="%s" AND namespace="%s";''' % (
             page, name, chan, namespace)).fetchone()
         rePage, reNick, reChan, reNotify = check
-        response = name + ": I will report changes to " + page + " in namespace " + namespace + " with no ping."
+        response = name + ": I will report changes to " + page + " in namespace " + str(namespace) + " with no ping."
     else:
-        response = name + ": you are already watching " + page + " in namespace " + namespace + " in this channel."
+        response = name + ": you are already watching " + page + " in namespace " + str(namespace) + " in this channel."
 
     db.close()
     return response
@@ -375,18 +375,18 @@ def global_watch_del(name, command, chan):
     switch, action, namespace, page = command.split(' ', 3)
 
     checkPage = c.execute(
-        '''SELECT * FROM global_watch WHERE title="%s" AND nick="%s" AND channel="%s" AND namespace="%s";''' % (page, name, chan, namespace)).fetchone()
+        '''SELECT * FROM global_watch WHERE title="%s" AND nick="%s" AND channel="%s" AND namespace="%s";''' % (page, name, chan, str(namespace))).fetchone()
     if checkPage is not None:
         try:
             c.execute(
-                '''DELETE FROM global_watch WHERE title="%s" AND nick="%s" AND channel="%s" AND namespace="%s";''' % (page, name, chan, namespace))
+                '''DELETE FROM global_watch WHERE title="%s" AND nick="%s" AND channel="%s" AND namespace="%s";''' % (page, name, chan, str(namespace)))
             db.commit()
-            response = "%s: I will no longer report changes to %s in namespace %s in this channel for you" % (name, page, namespace)
+            response = "%s: I will no longer report changes to %s in namespace %s in this channel for you" % (name, page, str(namespace))
         except:
             response = "Ugh... Something blew up. Operator873 help me. (line 396)"
     else:
         response = "%s: it doesn't look like I'm reporting changes to %s in namespace '%s' in this channel for you." % (
-            name, page, namespace)
+            name, page, str(namespace))
 
     db.close()
     return response
@@ -400,9 +400,9 @@ def global_watch_ping(name, command, chan):
 
     if switch.lower() == "on" or switch.lower() == "off":
         c.execute('''UPDATE global_watch set notify="%s" where title="%s" and nick="%s" and channel="%s" and namespace="%s";''' % (
-            switch.lower(), title, name, chan, namespace))
+            switch.lower(), title, name, chan, str(namespace)))
         db.commit()
-        response = "Ping set to " + switch.lower() + " for " + title + " in namespace '" + namespace + "' in this channel."
+        response = "Ping set to " + switch.lower() + " for " + title + " in namespace '" + str(namespace) + "' in this channel."
     else:
         response = "Malformed command! Try: !watch global help"
 

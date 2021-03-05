@@ -349,7 +349,7 @@ def global_watch_add(name, command, chan):
     switch, action, namespace, page = command.split(' ', 3)
 
     pageExists = c.execute(
-        '''SELECT * from global_watch WHERE title="%s" AND nick="%s" AND channel="%s AND namespace="%s";''' % (page, name, chan, str(namespace))).fetchone()
+        '''SELECT * from global_watch WHERE title="%s" AND nick="%s" AND channel="%s" AND namespace="%s";''' % (page, name, chan, str(namespace))).fetchone()
     if pageExists is None:
         try:
             c.execute('''INSERT INTO global_watch VALUES("%s", "%s", "%s", "%s", "off");''' % (page, str(namespace), name, chan))

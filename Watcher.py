@@ -109,6 +109,64 @@ def log_send(bot, change):
         return
 
 
+def check_global_page(bot, change):
+    try:
+        notused_namespace, chk_title = change['title'].split(':', 1)
+    except ValueError:
+        return
+
+    check = None
+
+    db = sqlite3.connect(DB)
+    c = db.cursor()
+
+    try:
+        check = c.execute('''SELECT * FROM global_watch where title="%s" and namespace="%s";''' % (chk_title, change['namespace'])).fetchall()
+    except:
+        db.close()
+        return
+
+    if check is not None:
+        title = change['title']
+        proj = change['wiki']
+        chRev = str(change['revision']['new'])
+        chURL = change['server_url']
+        chDiff = chURL + "/w/index.php?diff=" + chRev
+        chComment = change['comment']
+        editor = change['user']
+        space = u'\u200B'
+        editor = editor[:2] + space + editor[2:]
+
+        channels = []
+
+        for record in check:
+            dbPage, dbNamespace, dbNick, dbChan, notify = record
+            channels.append(dbChan)
+        channels = list(dict.fromkeys(channels))  # Collapse duplicate channels
+
+        for chan in channels:
+            nicks = ""
+            pgNicks = c.execute('SELECT nick from global_watch where title="%s" and channel="%s" and notify="on";' % (
+                title, chan)).fetchall()
+
+            if len(pgNicks) > 0:
+                for nick in pgNicks:
+                    if nicks == "":
+                        nicks = nick[0]
+                    else:
+                        nicks = nick[0] + " " + nicks
+                newReport = nicks + ": \x02" + title + "\x02 on " + proj + " was edited by \x02" + editor + "\x02 " + chDiff + " " + chComment
+            else:
+                newReport = "\x02" + title + "\x02 on " + proj + " was edited by \x02" + editor + "\x02 " + chDiff + " " + chComment
+
+            if check_hush(chan) is True:
+                continue
+            else:
+                bot.say(newReport, chan)
+        db.close()
+    else:
+        db.close()
+
 def edit_send(bot, change):
 
     proj = change['wiki']
@@ -121,6 +179,9 @@ def edit_send(bot, change):
     space = u'\u200B'
     editor = editor[:2] + space + editor[2:]
     check = None
+
+    if ':' in change['title']:
+        check_global_page(bot, change)
 
     db = sqlite3.connect(DB)
     c = db.cursor()
@@ -280,6 +341,74 @@ def watcherPing(msg, nick, chan):
 
     return response
 
+def global_watch_add(name, command, chan):
+
+    db = sqlite3.connect(DB)
+    c = db.cursor()
+
+    switch, action, namespace, page = command.split(' ', 3)
+
+    pageExists = c.execute(
+        '''SELECT * from global_watch WHERE title="%s" AND nick="%s" AND channel="%s AND namespace="%s";''' % (page, name, chan, namespace)).fetchone()
+    if pageExists is None:
+        try:
+            c.execute('''INSERT INTO global_watch VALUES("%s", "%s", "%s", "%s", "off");''' % (page, namespace, name, chan))
+            db.commit()
+        except Exception as e:
+            response = "Ugh... Something blew up adding the page to the table: " + str(e) + ". Operator873 help me."
+            db.close()
+            return response
+        check = c.execute('''SELECT * FROM global_watch WHERE title="%s" AND nick="%s" AND channel="%s" AND namespace="%s";''' % (
+            page, name, chan, namespace)).fetchone()
+        rePage, reNick, reChan, reNotify = check
+        response = name + ": I will report changes to " + page + " in namespace " + namespace + " with no ping."
+    else:
+        response = name + ": you are already watching " + page + " in namespace " + namespace + " in this channel."
+
+    db.close()
+    return response
+
+def global_watch_del(name, command, chan):
+    db = sqlite3.connect(DB)
+    c = db.cursor()
+
+    switch, action, namespace, page = command.split(' ', 3)
+
+    checkPage = c.execute(
+        '''SELECT * FROM global_watch WHERE title="%s" AND nick="%s" AND channel="%s" AND namespace="%s";''' % (page, name, chan, namespace)).fetchone()
+    if checkPage is not None:
+        try:
+            c.execute(
+                '''DELETE FROM global_watch WHERE title="%s" AND nick="%s" AND channel="%s" AND namespace="%s";''' % (page, name, chan, namespace))
+            db.commit()
+            response = "%s: I will no longer report changes to %s in namespace %s in this channel for you" % (name, page, namespace)
+        except:
+            response = "Ugh... Something blew up. Operator873 help me. (line 396)"
+    else:
+        response = "%s: it doesn't look like I'm reporting changes to %s in namespace '%s' in this channel for you." % (
+            name, page, namespace)
+
+    db.close()
+    return response
+
+
+def global_watch_ping(name, command, chan):
+    db = sqlite3.connect(DB)
+    c = db.cursor()
+
+    g, p, switch, namespace, title = command.split(' ', 4)
+
+    if switch.lower() == "on" or switch.lower() == "off":
+        c.execute('''UPDATE global_watch set notify="%s" where title="%s" and nick="%s" and channel="%s" and namespace="%s";''' % (
+            switch.lower(), title, name, chan, namespace))
+        db.commit()
+        response = "Ping set to " + switch.lower() + " for " + title + " in namespace '" + namespace + "' in this channel."
+    else:
+        response = "Malformed command! Try: !watch global help"
+
+    db.close()
+
+    return response
 
 @module.commands('speak')
 def watcherSpeak(bot, trigger):
@@ -443,20 +572,38 @@ def delGS(bot, trigger):
 @module.commands('watch')
 def watch(bot, trigger):
     watchAction = trigger.group(3)
-    if watchAction == "add" or watchAction == "Add" or watchAction == "+":
+    if watchAction.lower() == "add" or watchAction == "+":
         if trigger.group(5) == "":
-            bot.say("Command seems misformed. Syntax: !watch add proj page")
+            bot.say("Command seems malformed. Syntax: !watch add proj page")
         else:
             bot.say(watcherAdd(trigger.group(2), trigger.nick, trigger.sender))
-    elif watchAction == "del" or watchAction == "Del" or watchAction == "-":
+    elif watchAction.lower() == "del" or watchAction == "-":
         if trigger.group(5) == "":
-            bot.say("Command seems misformed. Syntax: !watch del proj page")
+            bot.say("Command seems malformed. Syntax: !watch del proj page")
         else:
             bot.say(watcherDel(trigger.group(2), trigger.nick, trigger.sender))
-    elif watchAction == "ping" or watchAction == "Ping":
+    elif watchAction.lower() == "ping":
         if trigger.group(6) == "":
-            bot.say("Command seems misformed. Syntax: !watch ping <on/off> proj page")
+            bot.say("Command seems malformed. Syntax: !watch ping <on/off> proj page")
         else:
             bot.say(watcherPing(trigger.group(2), trigger.nick, trigger.sender))
+    elif watchAction.lower() == 'global':
+        # !watch global help
+        # !watch global <add/del> <namespace id> <page>
+        # !watch global ping <on/off> <namespace id> <page>
+        if trigger.group(4).lower() == 'help':
+            bot.say("Command is: !watch global <add/del> <namespace id> <page>")
+            bot.say("To turn ping on or off: !watch global ping <on/off> <namespace id> <page>")
+            bot.say("See https://enwp.org/WP:NS for namespace IDs (0 Article / Article talk 1)")
+        elif trigger.group(4).lower() == 'add' and trigger.group(6) != "":
+            bot.say(global_watch_add(trigger.nick, trigger.group(2), trigger.sender))
+        elif trigger.group(4).lower() == 'del' and trigger.group(6) != "":
+            bot.say(global_watch_del(trigger.nick, trigger.group(2), trigger.sender))
+        elif trigger.group(4).lower() == 'ping' and trigger.group(7) != "":
+            bot.say(global_watch_ping(trigger.nick, trigger.group(2), trigger.sender))
+        else:
+            bot.say("Command is: !watch global <add/del> <namespace id> <page>")
+            bot.say("To turn ping on or off: !watch global ping <on/off> <namespace id> <page>")
+            bot.say("See https://enwp.org/WP:NS for namespace IDs (0 Article / Article talk 1)")
     else:
-        bot.say("I don't recognzie that command. Options are: Add & Del")
+        bot.say("I don't recognzie that command. Options are: Add, Del, and global")

@@ -62,8 +62,8 @@ def cssjs(bot, change):
 
 def checkpage(change):
     sendLog = {
-        'watcher':False,
-        'stalk':False
+        'watcher': False,
+        'stalk': False
     }
     proj = change['wiki']
     title = str(change['title'])
@@ -93,22 +93,60 @@ def global_edit(bot, change):
     """ title / namespace / nick / channel / notify """
 
     proj = change['wiki']
-    title = str(change['title'])
+    fulltitle = str(change['title'])
     chRev = str(change['revision']['new'])
     chURL = change['server_url']
     chDiff = chURL + "/w/index.php?diff=" + chRev
     chComment = change['comment']
+    chNamespace = change['namespace']
     editor = change['user']
     space = u'\u200B'
     editor = editor[:2] + space + editor[2:]
+
+    nmspace, title = fulltitle.split(":", 1)
+
     check = None
+
+    db = sqlite3.connect(DB)
+    c = db.cursor()
 
     try:
         check = c.execute('''SELECT * FROM global_watch where page="%s";''' % (title)).fetchall()
     except:
         return
 
-    target_title, target_namespace, target_nick, target_channel, target_notify = check
+    if check is not None:
+        channels = {}
+
+        for record in check:
+            target_title, target_namespace, target_nick, target_channel, target_notify = record
+            if target_namespace == chNamespace:
+                channels.append(target_channel)
+        channels = list(dict.fromkeys(channels))  # Collapse duplicate channels
+
+        for chan in channels:
+            nicks = ""
+            pgNicks = c.execute('SELECT nick from global_watch where page="%s" and namespace="%s" and channel="%s" and notify="on";' % (
+                title, chNamespace, chan)).fetchall()
+
+            if len(pgNicks) > 0:
+                for nick in pgNicks:
+                    if nicks == "":
+                        nicks = nick[0]
+                    else:
+                        nicks = nick[0] + " " + nicks
+                newReport = nicks + ": \x02" + fulltitle + "\x02 on " + proj + " was edited by \x02" + editor + "\x02 " + chDiff + " " + chComment
+            else:
+                newReport = "\x02" + fulltitle + "\x02 on " + proj + " was edited by \x02" + editor + "\x02 " + chDiff + " " + chComment
+
+            if check_hush(chan) is True:
+                continue
+            else:
+                bot.say(newReport, chan)
+
+        db.close()
+    else:
+        db.close()
 
 
 

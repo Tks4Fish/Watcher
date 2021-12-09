@@ -65,24 +65,28 @@ def checkpage(change):
         'watcher': False,
         'stalk': False
     }
-    proj = change['wiki']
-    title = str(change['title'])
 
-    table_query = '''SELECT name FROM sqlite_master WHERE type='table' AND name='{}';'''
-    stalk_query = '''SELECT title FROM global_watch WHERE title='{}';'''
+    proj = change['wiki']
+
+    try:
+        nspace, title = str(change['title']).split(':', 1)
+    except ValueError:
+        title = str(change['title'])
 
     db = sqlite3.connect(DB)
     c = db.cursor()
 
-    proj_exists = c.execute(table_query.format(proj)).fetchone()
-    stalk_exists = c.execute(stalk_query.format(title)).fetchone()
+    proj_exists = c.execute('''SELECT name FROM sqlite_master WHERE type='table' AND name=:project;''',
+                            {"project": proj}).fetchone()
+    stalk_exists = c.execute('''SELECT title FROM global_watch WHERE title=:page;''',
+                             {"page": title}).fetchall()
 
     db.close()
 
-    if proj_exists is not None:
+    if proj_exists is not None and len(proj_exists) > 0:
         sendLog['watcher'] = True
 
-    if stalk_exists is not None:
+    if stalk_exists is not None and len(stalk_exists) > 0:
         sendLog['stalk'] = True
 
     return sendLog
@@ -111,12 +115,12 @@ def global_edit(bot, change):
     c = db.cursor()
 
     try:
-        check = c.execute('''SELECT * FROM global_watch where page="%s";''' % (title)).fetchall()
+        check = c.execute('''SELECT * FROM global_watch where title="%s";''' % (title)).fetchall()
     except:
         return
 
     if check is not None:
-        channels = {}
+        channels = []
 
         for record in check:
             target_title, target_namespace, target_nick, target_channel, target_notify = record
@@ -126,7 +130,7 @@ def global_edit(bot, change):
 
         for chan in channels:
             nicks = ""
-            pgNicks = c.execute('SELECT nick from global_watch where page="%s" and namespace="%s" and channel="%s" and notify="on";' % (
+            pgNicks = c.execute('SELECT nick from global_watch where title="%s" and namespace="%s" and channel="%s" and notify="on";' % (
                 title, chNamespace, chan)).fetchall()
 
             if len(pgNicks) > 0:

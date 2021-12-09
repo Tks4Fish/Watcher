@@ -39,7 +39,6 @@ def dispatch(bot, change):
             edit_send(bot, change)
 
         if sendLog['stalk'] is True:
-            bot.say("Stalk detected", "##OperTestBed") # Debug line
             global_edit(bot, change)
 
         #if re.search(r'.*\.css$', change['title']) or re.search(r'.*\.js$', change['title']):
@@ -128,8 +127,6 @@ def global_edit(bot, change):
             target_title, target_namespace, target_nick, target_channel, target_notify = record
             if target_namespace == chNamespace:
                 channels.append(target_channel)
-            else: # Debug line
-                bot.say("No match on Line 125", "##OperTestBed") # Debug line
         channels = list(dict.fromkeys(channels))  # Collapse duplicate channels
 
         for chan in channels:

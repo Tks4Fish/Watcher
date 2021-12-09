@@ -101,7 +101,7 @@ def global_edit(bot, change):
     chURL = change['server_url']
     chDiff = chURL + "/w/index.php?diff=" + chRev
     chComment = change['comment']
-    chNamespace = change['namespace']
+    chNamespace = str(change['namespace'])
     editor = change['user']
     space = u'\u200B'
     editor = editor[:2] + space + editor[2:]

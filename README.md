@@ -10,36 +10,36 @@ For example, if you wished, you could follow \<User namespace\>:YourAccount on a
 
 ## Watch Commands ##
 
-```!watch add simplewiki Wikipedia:Vandalism in progress```
+```!watch add simplewiki Wikipedia:Vandalism in progress```  
 This command would result in changes to Wikipedia:Vandalism in progress on simple.wikipedia.org being reported in the current channel.
 
-```watch del simplewiki Wikipedia:Vandalism in progress```
+```watch del simplewiki Wikipedia:Vandalism in progress```  
 This command would result in changes to Wikipedia:Vandalism in progress on simple.wikipedia.org no longer being reported in the current channel.
 
-```!watch ping on enwiki Some Article```
+```!watch ping on enwiki Some Article```  
 Add a ping to a watch report for the indicated page. In other words, the bot will specifically mention your IRC nick.
 
-```!watch ping off enwiki Some Article```
+```!watch ping off enwiki Some Article```  
 This will make the bot stop mentioning your nick during reports.
 
-```!hush``` / ```!mute```
+```!hush``` / ```!mute```  
 Temporarily stop all commands to this channel. The bot will snitch who hushed it. Useful during mass actions.
 
-```!speak```
+```!speak```  
 Resume reporting changes to the channel.
 
 ## Global Watch Commands ##
-```!globalwatch {action} {namespaceID} {title}```
+```!globalwatch {action} {namespaceID} {title}```  
 General for of commands
 
-```!globalwatch add 0 Main Page```
+```!globalwatch add 0 Main Page```  
 Adds the page called "Main Page" in 0 namespace (Article) to global watch.
 
-```!globalwatch del 3 Operator873```
+```!globalwatch del 3 Operator873```  
 Stops following global changes to Operator873's talk page (3 is User talk)
 
-```!globalwatch ping on 0 Main Page```
+```!globalwatch ping on 0 Main Page```  
 Adds a ping (nick mention) to the global watch of "Main Page"
 
-```!globalwatch ping off 0 Main Page```
+```!globalwatch ping off 0 Main Page```  
 Removes the ping from the global watch of "Main Page"

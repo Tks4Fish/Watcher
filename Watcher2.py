@@ -605,11 +605,11 @@ def gwatch(bot, trigger):
         if trigger.group(5) == "":
             bot.say("Command seems malformed. Syntax: !globalwatch del namespaceID page")
         else:
-            bot.say(watcherDel(trigger.group(2), trigger.account, trigger.sender))
+            bot.say(globalWatcherDel(trigger.group(2), trigger.account, trigger.sender))
     elif watchAction == "ping" or watchAction == "Ping":
         if trigger.group(6) == "":
             bot.say("Command seems malformed. Syntax: !watch ping <on/off> namespaceID page")
         else:
-            bot.say(watcherPing(trigger.group(2), trigger.account, trigger.sender))
+            bot.say(globalWatcherPing(trigger.group(2), trigger.account, trigger.sender))
     else:
         bot.say("I don't recognize that command. Options are: add, del, & ping")

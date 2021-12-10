@@ -647,16 +647,20 @@ def namespaces(bot, trigger):
         '2301':"Gadget talk"
     }
     search = trigger.group(3)
+    response = ""
 
-    if search == "":
+    if search == "" or search is None:
         bot.say("Randomly showing an example. Try '!namespace User' or '!namespace 10'")
         num, space = random.choice(list(listSpaces.items()))
         bot.say(num + " is " + space)
     else:
         for item in listSpaces:
             if listSpaces[item].lower() == search.lower():
-                bot.say(item)
+                response = item
             elif item == search:
-                bot.say(listSpaces[item])
-            else:
-                bot.say("I can't find that name space. Global watch should still work, I just can't provide an example.")
+                response = listSpaces[item]
+
+        if response == "":
+            bot.say("I can't find that name space. Global watch should still work, I just can't provide an example.")
+        else:
+            bot.say(response)

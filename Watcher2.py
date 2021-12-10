@@ -646,7 +646,7 @@ def namespaces(bot, trigger):
         '2300':"Gadget",
         '2301':"Gadget talk"
     }
-    search = trigger.group(3)
+    search = trigger.group(2)
     response = ""
 
     if search == "" or search is None:

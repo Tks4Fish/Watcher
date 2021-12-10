@@ -314,7 +314,7 @@ def watcherPing(msg, nick, chan):
 
     action, switch, project, page = msg.split(' ', 3)
 
-    if switch == "on" or switch == "On" or switch == "off" or switch == "Off":
+    if switch.lower() == "on" or switch.lower() == "off":
         c.execute('''UPDATE %s set notify="%s" where page="%s" and nick="%s" and channel="%s";''' % (
         project, switch, page, nick, chan))
         db.commit()
@@ -326,6 +326,89 @@ def watcherPing(msg, nick, chan):
 
     return response
 
+def globalWatcherAdd(msg, nick, chan):
+    # !globalwatch add namespaceid title
+    db = sqlite3.connect(DB)
+    c = db.cursor()
+
+    action, nspace, title = msg.split(' ', 2)
+
+    checkExisting = c.execute('''SELECT * FROM global_watch WHERE title=? AND namespace=? AND nick=? AND channel=?;''',
+                              (title, nspace, nick, chan)).fetchone()
+
+    if checkExisting is None:
+        try:
+            c.execute('''INSERT INTO global_watch VALUES(?, ?, ?, ?, ?);''', (title, nspace, nick, chan, "off"))
+            db.commit()
+        except Exception as e:
+            response = "Ugh... Something blew up adding the page to the table: " + str(e) + ". Operator873 help me."
+            db.close()
+            return response
+        check = c.execute('''SELECT * FROM global_watch WHERE title=? AND namespace=? AND nick=? AND channel=?;''',
+                              (title, nspace, nick, chan)).fetchone()
+
+        page, space, user, channel, ping = check
+
+        response = user + ": I will report changes to " + page + " in namespace " + space + " on all projects with no ping."
+    else:
+        response = nick + ": you are already globally watching " + nspace + ":" + page + " in this channel."
+
+    db.close()
+    return response
+
+
+def globalWatcherDel(msg, nick, chan):
+    # !globalwatch del namespaceid title
+    db = sqlite3.connect(DB)
+    c = db.cursor()
+
+    action, nspace, title = msg.split(' ', 2)
+
+    checkExisting = c.execute('''SELECT * FROM global_watch WHERE title=? AND namespace=? AND nick=? AND channel=?;''',
+                              (title, nspace, nick, chan)).fetchone()
+
+    if checkExisting is not None:
+        try:
+            c.execute('''DELETE FROM global_watch WHERE title=? AND namespace=? AND nick=? AND channel=?;''',
+                      (title, nspace, nick, chan))
+            db.commit()
+        except Exception as e:
+            response = str(e)
+            db.close()
+            return response
+
+        check = c.execute('''SELECT * FROM global_watch WHERE title=? AND namespace=? AND nick=? AND channel=?;''',
+                          (title, nspace, nick, chan)).fetchone()
+
+        if check is None:
+            response = user + ": I will no longer report changes to " + page + " in namespace " + space + "."
+        else:
+            response = "Confirmation failed. Pinging Operator873"
+    else:
+        response = nick + ": you are not globally watching " + nspace + ":" + page + " in this channel."
+
+    db.close()
+    return response
+
+def globalWatcherPing(msg, nick, chan):
+    # !globalwatch ping on namespaceid title
+    db = sqlite3.connect(DB)
+    c = db.cursor()
+
+    action, switch, nspace, title = msg.split(' ', 3)
+    switch = switch.lower()
+
+    if switch == "on" or switch == "off":
+        c.execute('''UPDATE global_watch SET notify=? WHERE title=? AND namespace=? AND nick=? AND channel=?;''',
+                  (switch, title, nspace, nick, chan)).fetchone()
+        db.commit()
+        response = "Ping set to " + switch + " for " + title + " in namespace " + nspace + " in this channel."
+    else:
+        response = "Malformed command! Try: !globalwatch ping {on/off} namespaceID The page you want"
+
+    db.close()
+
+    return response
 
 @module.commands('speak')
 def watcherSpeak(bot, trigger):
@@ -490,18 +573,43 @@ def watch(bot, trigger):
     watchAction = trigger.group(3)
     if watchAction == "add" or watchAction == "Add" or watchAction == "+":
         if trigger.group(5) == "":
-            bot.say("Command seems misformed. Syntax: !watch add proj page")
+            bot.say("Command seems malformed. Syntax: !watch add proj page")
         else:
-            bot.say(watcherAdd(trigger.group(2), trigger.nick, trigger.sender))
+            bot.say(watcherAdd(trigger.group(2), trigger.account, trigger.sender))
     elif watchAction == "del" or watchAction == "Del" or watchAction == "-":
         if trigger.group(5) == "":
-            bot.say("Command seems misformed. Syntax: !watch del proj page")
+            bot.say("Command seems malformed. Syntax: !watch del proj page")
         else:
-            bot.say(watcherDel(trigger.group(2), trigger.nick, trigger.sender))
+            bot.say(watcherDel(trigger.group(2), trigger.account, trigger.sender))
     elif watchAction == "ping" or watchAction == "Ping":
         if trigger.group(6) == "":
-            bot.say("Command seems misformed. Syntax: !watch ping <on/off> proj page")
+            bot.say("Command seems malformed. Syntax: !watch ping <on/off> proj page")
         else:
-            bot.say(watcherPing(trigger.group(2), trigger.nick, trigger.sender))
+            bot.say(watcherPing(trigger.group(2), trigger.account, trigger.sender))
     else:
         bot.say("I don't recognzie that command. Options are: Add & Del")
+
+
+# !globalwatch ping on namespaceid title
+# !globalwatch add namespaceid title
+@module.require_chanmsg(message="This message must be used in the channel")
+@module.commands('globalwatch')
+def gwatch(bot, trigger):
+    watchAction = trigger.group(3)
+    if watchAction == "add" or watchAction == "Add" or watchAction == "+":
+        if trigger.group(5) == "":
+            bot.say("Command seems malformed. Syntax: !globalwatch add namespaceID page")
+        else:
+            bot.say(globalWatcherAdd(trigger.group(2), trigger.account, trigger.sender))
+    elif watchAction == "del" or watchAction == "Del" or watchAction == "-":
+        if trigger.group(5) == "":
+            bot.say("Command seems malformed. Syntax: !globalwatch del namespaceID page")
+        else:
+            bot.say(watcherDel(trigger.group(2), trigger.account, trigger.sender))
+    elif watchAction == "ping" or watchAction == "Ping":
+        if trigger.group(6) == "":
+            bot.say("Command seems malformed. Syntax: !watch ping <on/off> namespaceID page")
+        else:
+            bot.say(watcherPing(trigger.group(2), trigger.account, trigger.sender))
+    else:
+        bot.say("I don't recognize that command. Options are: add, del, & ping")

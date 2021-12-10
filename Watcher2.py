@@ -381,11 +381,11 @@ def globalWatcherDel(msg, nick, chan):
                           (title, nspace, nick, chan)).fetchone()
 
         if check is None:
-            response = user + ": I will no longer report changes to " + page + " in namespace " + space + "."
+            response = nick + ": I will no longer report changes to " + title + " in namespace " + nspace + "."
         else:
             response = "Confirmation failed. Pinging Operator873"
     else:
-        response = nick + ": you are not globally watching " + nspace + ":" + page + " in this channel."
+        response = nick + ": you are not globally watching " + nspace + ":" + title + " in this channel."
 
     db.close()
     return response

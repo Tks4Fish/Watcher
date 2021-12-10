@@ -1,6 +1,7 @@
 import json
 import threading
 import sqlite3
+import random
 from sopel import module
 from sseclient import SSEClient as EventSource
 
@@ -613,3 +614,49 @@ def gwatch(bot, trigger):
             bot.say(globalWatcherPing(trigger.group(2), trigger.account, trigger.sender))
     else:
         bot.say("I don't recognize that command. Options are: add, del, & ping")
+
+@module.require_chanmsg(message="This message must be used in the channel")
+@module.commands('namespace')
+def namespaces(bot, trigger):
+    listSpaces = {
+        '0':"Article",
+        '1':"Article talk",
+        '2':"User",
+        '3':"User talk",
+        '4':"Wikipedia",
+        '5':"Wikipedia talk",
+        '6':"File",
+        '7':"File talk",
+        '8':"MediaWiki",
+        '9':"MediaWiki talk",
+        '10':"Template",
+        '11':"Template talk",
+        '12':"Help",
+        '13':"Help talk",
+        '14':"Category",
+        '15':"Category talk",
+        '101':"Portal",
+        '102':"Portal talk",
+        '118':"Draft",
+        '119':"Draft talk",
+        '710':"TimedText",
+        '711':"TimedText talk",
+        '828':"Module",
+        '829':"Module talk",
+        '2300':"Gadget",
+        '2301':"Gadget talk"
+    }
+    search = trigger.group(3)
+
+    if search == "":
+        bot.say("Randomly showing an example. Try '!namespace User' or '!namespace 10'")
+        num, space = random.choice(list(listSpaces.items()))
+        bot.say(num + " is " + space)
+    else:
+        for item in listSpaces:
+            if listSpaces[item].lower() == search.lower():
+                bot.say(item)
+            elif item == search:
+                bot.say(listSpaces[item])
+            else:
+                bot.say("I can't find that name space. Global watch should still work, I just can't provide an example.")

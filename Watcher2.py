@@ -598,17 +598,17 @@ def watch(bot, trigger):
 def gwatch(bot, trigger):
     watchAction = trigger.group(3)
     if watchAction == "add" or watchAction == "Add" or watchAction == "+":
-        if trigger.group(5) == "":
+        if trigger.group(5) == "" or trigger.group(5) is None:
             bot.say("Command seems malformed. Syntax: !globalwatch add namespaceID page")
         else:
             bot.say(globalWatcherAdd(trigger.group(2), trigger.account, trigger.sender))
     elif watchAction == "del" or watchAction == "Del" or watchAction == "-":
-        if trigger.group(5) == "":
+        if trigger.group(5) == "" or trigger.group(5) is None:
             bot.say("Command seems malformed. Syntax: !globalwatch del namespaceID page")
         else:
             bot.say(globalWatcherDel(trigger.group(2), trigger.account, trigger.sender))
     elif watchAction == "ping" or watchAction == "Ping":
-        if trigger.group(6) == "":
+        if trigger.group(6) == "" or trigger.group(6) is None:
             bot.say("Command seems malformed. Syntax: !watch ping <on/off> namespaceID page")
         else:
             bot.say(globalWatcherPing(trigger.group(2), trigger.account, trigger.sender))

@@ -42,8 +42,8 @@ def dispatch(bot, change):
         if sendLog['stalk'] is True:
             global_edit(bot, change)
 
-        #if re.search(r'.*\.css$', change['title']) or re.search(r'.*\.js$', change['title']):
-        #    cssjs(bot, change)
+        if re.search(r'.*\.css$', change['title']) or re.search(r'.*\.js$', change['title']):
+            cssjs(bot, change)
 
 def cssjs(bot, change):
     proj = change['wiki']

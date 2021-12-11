@@ -202,9 +202,15 @@ def edit_send(bot, change):
                         nicks = nick[0]
                     else:
                         nicks = nick[0] + " " + nicks
-                newReport = nicks + ": \x02" + title + "\x02 on " + proj + " was edited by \x02" + editor + "\x02 " + chDiff + " " + chComment
+                if change['type'] == 'edit':
+                    newReport = nicks + ": \x02" + title + "\x02 on " + proj + " was edited by \x02" + editor + "\x02 " + chDiff + " " + chComment
+                elif change['type'] == 'create':
+                    newReport = nicks + ": \x02" + title + "\x02 on " + proj + " was created by \x02" + editor + "\x02 " + chDiff + " " + chComment
             else:
-                newReport = "\x02" + title + "\x02 on " + proj + " was edited by \x02" + editor + "\x02 " + chDiff + " " + chComment
+                if change['type'] == 'edit':
+                    newReport = "\x02" + title + "\x02 on " + proj + " was edited by \x02" + editor + "\x02 " + chDiff + " " + chComment
+                elif change['type'] == 'create':
+                    newReport = "\x02" + title + "\x02 on " + proj + " was created by \x02" + editor + "\x02 " + chDiff + " " + chComment
 
             if check_hush(chan) is True:
                 continue

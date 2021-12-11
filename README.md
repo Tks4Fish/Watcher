@@ -43,3 +43,6 @@ Adds a ping (nick mention) to the global watch of "Main Page"
 
 ```!globalwatch ping off 0 Main Page```  
 Removes the ping from the global watch of "Main Page"
+
+```!namespace {(int) OR (string)}```  
+This is a limited dictionary query of some namespace numbers and names for reference. For example, to find the namespace number for "User" you would execute `!namespace User` which would return 2. Alternatively, you can also query to see what name space an integer is: `!namespace 2` which would return "Article talk"

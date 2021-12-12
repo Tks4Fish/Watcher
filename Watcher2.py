@@ -8,7 +8,6 @@ from sseclient import SSEClient as EventSource
 
 
 DB = 'wiki.db'
-BOT_OWNER = "Your IRC Nick"
 
 
 def setup(bot):
@@ -31,7 +30,7 @@ def listener(bot, url, stop_event):
                         dispatch(bot, change)
                     except ValueError:
                         pass
-    bot.say("Listener stopped", BOT_OWNER)
+    bot.say("Listener stopped", "Operator873")
 
 
 def dispatch(bot, change):
@@ -200,7 +199,7 @@ def global_edit(bot, change):
     c = db.cursor()
 
     try:
-        check = c.execute('''SELECT * FROM global_watch where title=;''', (title,)).fetchall()
+        check = c.execute('''SELECT * FROM global_watch where title="%s";''' % (title)).fetchall()
     except:
         return
 
@@ -215,8 +214,8 @@ def global_edit(bot, change):
 
         for chan in channels:
             nicks = ""
-            pgNicks = c.execute('''SELECT nick from global_watch where title=? and namespace=? and channel=? and notify="on";''', 
-                                (title, chNamespace, chan)).fetchall()
+            pgNicks = c.execute('SELECT nick from global_watch where title="%s" and namespace="%s" and channel="%s" and notify="on";' % (
+                title, chNamespace, chan)).fetchall()
 
             if len(pgNicks) > 0:
                 for nick in pgNicks:
@@ -262,7 +261,7 @@ def edit_send(bot, change):
     c = db.cursor()
 
     try:
-        check = c.execute('''SELECT * FROM ? where page=?;''', (proj, title)).fetchall()
+        check = c.execute('''SELECT * FROM %s where page="%s";''' % (proj, title)).fetchall()
     except:
         return
 
@@ -276,8 +275,8 @@ def edit_send(bot, change):
 
         for chan in channels:
             nicks = ""
-            pgNicks = c.execute('''SELECT nick from ? where page=? and channel=? and notify="on";''', 
-                                (proj, title, chan)).fetchall()
+            pgNicks = c.execute('SELECT nick from %s where page="%s" and channel="%s" and notify="on";' % (
+                proj, title, chan)).fetchall()
 
             if len(pgNicks) > 0:
                 for nick in pgNicks:
@@ -309,7 +308,8 @@ def check_hush(channel):
     c = db.cursor()
 
     hushCheck = c.execute(
-        '''SELECT * FROM hushchannels WHERE channel=?;''', (channel,)).fetchall()
+        '''SELECT * FROM hushchannels WHERE channel="%s";''' % channel
+    ).fetchall()
 
     db.close()
 
@@ -319,6 +319,21 @@ def check_hush(channel):
         return False
 
 
+def check_gswiki(project):
+    db = sqlite3.connect(DB)
+    c = db.cursor()
+
+    check = c.execute('''SELECT * FROM GSwikis WHERE project="%s";''' % project).fetchall()
+
+    db.close()
+
+    if len(check) > 0:
+        return True
+    else:
+        return False
+
+
+
 def watcherAdd(msg, nick, chan):
     db = sqlite3.connect(DB)
     c = db.cursor()
@@ -326,36 +341,36 @@ def watcherAdd(msg, nick, chan):
     action, project, page = msg.split(' ', 2)
 
     checkTable = c.execute(
-        '''SELECT count(*) FROM sqlite_master WHERE type="table" AND name=?;''', (project,)).fetchone()
+        '''SELECT count(*) FROM sqlite_master WHERE type="table" AND name="%s";''' % project).fetchone()
     if checkTable[0] == 0:
         try:
-            c.execute('''CREATE TABLE ? (page TEXT, nick TEXT, channel TEXT, notify TEXT);''', (project,))
+            c.execute('''CREATE TABLE %s (page TEXT, nick TEXT, channel TEXT, notify TEXT);''' % project)
             db.commit()
         except Exception as e:
-            response = "Ugh... Something blew up creating the table. " + BOT_OWNER + " help me. " + str(e)
+            response = "Ugh... Something blew up creating the table. Operator873 help me. " + str(e)
             db.close()
             return response
 
         # Check to see if we have the table
         check = c.execute(
-            '''SELECT count(*) FROM sqlite_master WHERE type="table" AND name=?;''', (project,)).fetchone()
+            '''SELECT count(*) FROM sqlite_master WHERE type="table" AND name="%s";''' % project).fetchone()
         if check[0] == 0:
-            response = "Ugh... Something blew up finding the new table: (" + check + ") " + BOT_OWNER + " help me."
+            response = "Ugh... Something blew up finding the new table: (" + check + ") Operator873 help me."
             db.close()
             return response
 
     pageExists = c.execute(
-        '''SELECT * from ? WHERE page=? AND nick=? AND channel=?;''', (project, page, nick, chan)).fetchone()
+        '''SELECT * from %s WHERE page="%s" AND nick="%s" AND channel="%s";''' % (project, page, nick, chan)).fetchone()
     if pageExists is None:
         try:
-            c.execute('''INSERT INTO ? VALUES(?, ?, ?, "off");''', (project, page, nick, chan))
+            c.execute('''INSERT INTO %s VALUES("%s", "%s", "%s", "off");''' % (project, page, nick, chan))
             db.commit()
         except Exception as e:
-            response = "Ugh... Something blew up adding the page to the table: " + str(e) + ". " + BOT_OWNER + " help me."
+            response = "Ugh... Something blew up adding the page to the table: " + str(e) + ". Operator873 help me."
             db.close()
             return response
-        check = c.execute('''SELECT * FROM ? WHERE page=? AND nick=? AND channel=?;''', 
-                          (project, page, nick, chan)).fetchone()
+        check = c.execute('''SELECT * FROM %s WHERE page="%s" AND nick="%s" AND channel="%s";''' % (
+        project, page, nick, chan)).fetchone()
         rePage, reNick, reChan, reNotify = check
         response = nick + ": I will report changes to " + page + " on " + project + " with no ping."
     else:
@@ -372,15 +387,15 @@ def watcherDel(msg, nick, chan):
     action, project, page = msg.split(' ', 2)
 
     checkPage = c.execute(
-        '''SELECT * FROM ? WHERE page=? AND nick=? AND channel=?;''', (project, page, nick, chan)).fetchone()
+        '''SELECT * FROM %s WHERE page="%s" AND nick="%s" AND channel="%s";''' % (project, page, nick, chan)).fetchone()
     if checkPage is not None:
         try:
             c.execute(
-                '''DELETE FROM ? WHERE page=? AND nick=? AND channel=?;''', (project, page, nick, chan))
+                '''DELETE FROM %s WHERE page="%s" AND nick="%s" AND channel="%s";''' % (project, page, nick, chan))
             db.commit()
             response = "%s: I will no longer report changes to %s on %s in this channel for you" % (nick, page, project)
         except:
-            response = "Ugh... Something blew up. " + BOT_OWNER + " help me."
+            response = "Ugh... Something blew up. Operator873 help me."
     else:
         response = "%s: it doesn't look like I'm reporting changes to %s on %s in this channel for you." % (
         nick, page, project)
@@ -395,7 +410,8 @@ def watcherPing(msg, nick, chan):
     action, switch, project, page = msg.split(' ', 3)
 
     if switch.lower() == "on" or switch.lower() == "off":
-        c.execute('''UPDATE ? set notify=? where page=? and nick=? and channel=?;''', (project, switch, page, nick, chan))
+        c.execute('''UPDATE %s set notify="%s" where page="%s" and nick="%s" and channel="%s";''' % (
+        project, switch, page, nick, chan))
         db.commit()
         response = "Ping set to " + switch + " for " + page + " on " + project + " in this channel."
     else:
@@ -420,7 +436,7 @@ def globalWatcherAdd(msg, nick, chan):
             c.execute('''INSERT INTO global_watch VALUES(?, ?, ?, ?, ?);''', (title, nspace, nick, chan, "off"))
             db.commit()
         except Exception as e:
-            response = "Ugh... Something blew up adding the page to the table: " + str(e) + ". " + BOT_OWNER + " help me."
+            response = "Ugh... Something blew up adding the page to the table: " + str(e) + ". Operator873 help me."
             db.close()
             return response
         check = c.execute('''SELECT * FROM global_watch WHERE title=? AND namespace=? AND nick=? AND channel=?;''',
@@ -430,7 +446,7 @@ def globalWatcherAdd(msg, nick, chan):
 
         response = user + ": I will report changes to " + page + " in namespace " + space + " on all projects with no ping."
     else:
-        response = nick + ": you are already globally watching " + nspace + ":" + title + " in this channel."
+        response = nick + ": you are already globally watching " + nspace + ":" + page + " in this channel."
 
     db.close()
     return response
@@ -462,7 +478,7 @@ def globalWatcherDel(msg, nick, chan):
         if check is None:
             response = nick + ": I will no longer report changes to " + title + " in namespace " + nspace + "."
         else:
-            response = "Confirmation failed. Pinging " + BOT_OWNER
+            response = "Confirmation failed. Pinging Operator873"
     else:
         response = nick + ": you are not globally watching " + nspace + ":" + title + " in this channel."
 
@@ -494,15 +510,15 @@ def watcherSpeak(bot, trigger):
     db = sqlite3.connect(DB)
     c = db.cursor()
 
-    doesExist = c.execute('''SELECT * FROM hushchannels WHERE channel=?;''', (trigger.sender,)).fetchall()
+    doesExist = c.execute('''SELECT * FROM hushchannels WHERE channel="%s";''' % trigger.sender).fetchall()
 
     if len(doesExist) > 0:
         try:
-            c.execute('''DELETE FROM hushchannels WHERE channel=?;''', (trigger.sender,))
+            c.execute('''DELETE FROM hushchannels WHERE channel="%s";''' % trigger.sender)
             db.commit()
             bot.say("Alright! Back to business.")
         except:
-            bot.say("Ugh... something blew up. Help me " + BOT_OWNER)
+            bot.say("Ugh... something blew up. Help me Operator873")
         finally:
             db.close()
     else:
@@ -520,7 +536,7 @@ def watcherHush(bot, trigger):
     now = time.time()
     timestamp = time.ctime(now)
 
-    doesExist = c.execute('''SELECT * FROM hushchannels WHERE channel=?;''', (trigger.sender,)).fetchall()
+    doesExist = c.execute('''SELECT * FROM hushchannels WHERE channel="%s";''' % trigger.sender).fetchall()
 
     if len(doesExist) > 0:
         chan, nick, time = doesExist[0]
@@ -528,32 +544,35 @@ def watcherHush(bot, trigger):
         db.close()
     else:
         if trigger.sender == "#wikimedia-gs-internal" or trigger.sender == "#wikimedia-gs" or trigger.sender == "##OperTestBed":
-            isGS = c.execute('''SELECT account from globalsysops where nick=?;''', (trigger.nick,)).fetchall()
+            isGS = c.execute('''SELECT account from globalsysops where nick="%s";''' % trigger.nick).fetchall()
             if len(isGS) > 0:
                 try:
-                    c.execute('''INSERT INTO hushchannels VALUES(?, ?, ?);''', (trigger.sender, trigger.nick, timestamp))
+                    c.execute('''INSERT INTO hushchannels VALUES("%s", "%s", "%s");''' % (
+                    trigger.sender, trigger.nick, timestamp))
                     db.commit()
-                    check = c.execute('''SELECT * FROM hushchannels WHERE channel=?;''', (trigger.sender,)).fetchall()[0]
+                    check = c.execute('''SELECT * FROM hushchannels WHERE channel="%s";''' % trigger.sender).fetchall()[
+                        0]
                     chan, nick, time = check
                     bot.say(nick + " hushed! " + time)
                     db.close()
                 except:
-                    bot.say("Ugh... something blew up. Help me " + BOT_OWNER)
+                    bot.say("Ugh... something blew up. Help me Operator873")
 
         else:
             try:
-                c.execute('''INSERT INTO hushchannels VALUES(?, ?, ?);''', (trigger.sender, trigger.nick, timestamp))
+                c.execute('''INSERT INTO hushchannels VALUES("%s", "%s", "%s");''' % (
+                trigger.sender, trigger.nick, timestamp))
                 db.commit()
             except:
-                bot.say("Ugh... something blew up. Help me " + BOT_OWNER)
+                bot.say("Ugh... something blew up. Help me Operator873")
             finally:
-                check = c.execute('''SELECT * FROM hushchannels WHERE channel=?;''', (trigger.sender,)).fetchall()[0]
+                check = c.execute('''SELECT * FROM hushchannels WHERE channel="%s";''' % trigger.sender).fetchall()[0]
                 chan, nick, time = check
                 bot.say(nick + " hushed! " + time)
                 db.close()
 
 
-@module.require_admin(message="This function is only available to " + BOT_OWNER + " and bot admins.")
+@module.require_admin(message="This function is only available to Operator873 and bot admins.")
 @module.commands('watchstart')
 def start_listener(bot, trigger):
     if 'wikistream_listener' not in bot.memory:
@@ -580,12 +599,12 @@ def checkListener(bot):
 
         bot.memory['wikistream_listener'] = listen
         bot.memory['wikistream_listener'].start()
-        # bot.say("Restarted listener", BOT_OWNER)
+        # bot.say("Restarted listener", "Operator873")
     else:
         pass
 
 
-@module.require_admin(message="This function is only available to " + BOT_OWNER + " and bot admins.")
+@module.require_admin(message="This function is only available to Operator873 and bot admins.")
 @module.commands('watchstatus')
 def watchStatus(bot, trigger):
     if 'wikistream_listener' in bot.memory and bot.memory['wikistream_listener'].is_alive() is True:
@@ -596,7 +615,7 @@ def watchStatus(bot, trigger):
     bot.say(msg)
 
 
-@module.require_admin(message="This function is only available to " + BOT_OWNER + " and bot admins.")
+@module.require_admin(message="This function is only available to Operator873 and bot admins.")
 @module.commands('watchstop')
 def watchStop(bot, trigger):
     if 'wikistream_listener' not in bot.memory:
@@ -610,14 +629,14 @@ def watchStop(bot, trigger):
             bot.say(str(e))
 
 
-@module.require_admin(message="This function is only available to " + BOT_OWNER + " and bot admins.")
+@module.require_admin(message="This function is only available to Operator873 and bot admins.")
 @module.commands('addmember')
 def addGS(bot, trigger):
     db = sqlite3.connect(DB)
     c = db.cursor()
-    c.execute('''INSERT INTO globalsysops VALUES(?, ?);''', (trigger.group(3), trigger.group(4)))
+    c.execute('''INSERT INTO globalsysops VALUES("%s", "%s");''' % (trigger.group(3), trigger.group(4)))
     db.commit()
-    nickCheck = c.execute('''SELECT nick FROM globalsysops where account=?;''', (trigger.group(4),)).fetchall()
+    nickCheck = c.execute('''SELECT nick FROM globalsysops where account="%s";''' % trigger.group(4)).fetchall()
     nicks = ""
     for nick in nickCheck:
         if nicks == "":
@@ -628,19 +647,19 @@ def addGS(bot, trigger):
     bot.say("Wikipedia account " + trigger.group(4) + " is now known by IRC nick(s): " + nicks)
 
 
-@module.require_admin(message="This function is only available to " + BOT_OWNER + " and bot admins.")
+@module.require_admin(message="This function is only available to Operator873 and bot admins.")
 @module.commands('removemember')
 def delGS(bot, trigger):
     db = sqlite3.connect(DB)
     c = db.cursor()
-    c.execute('''DELETE FROM globalsysops WHERE account=?;''', (trigger.group(3),))
+    c.execute('''DELETE FROM globalsysops WHERE account="%s";''' % trigger.group(3))
     db.commit()
     checkWork = None
     try:
-        checkWork = c.execute('''SELECT nick FROM globalsysops WHERE account=?;''', (trigger.group(3),)).fetchall()
+        checkWork = c.execute('''SELECT nick FROM globalsysops WHERE account="%s";''' % trigger.group(3)).fetchall()
         bot.say("All nicks for " + trigger.group(3) + " have been purged.")
     except:
-        bot.say("Ugh... Something blew up. Help me " + BOT_OWNER)
+        bot.say("Ugh... Something blew up. Help me Operator873.")
 
 
 @module.require_chanmsg(message="This message must be used in the channel")

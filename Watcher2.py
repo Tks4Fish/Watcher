@@ -47,6 +47,10 @@ def dispatch(bot, change):
         if re.search(r'.*\.css$', change['title']) or re.search(r'.*\.js$', change['title']):
             cssjs(bot, change)
 
+    if change['type'] == 'log':
+        if check_gswiki(change['wiki']):
+            log_send(bot, change)
+
 def log_send(bot, change):
 
     gs = change['user']

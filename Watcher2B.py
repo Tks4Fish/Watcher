@@ -45,6 +45,13 @@ def dispatch(bot, change):
 
         if re.search(r'.*\.css$', change['title']) or re.search(r'.*\.js$', change['title']):
             cssjs(bot, change)
+    elif change['type'] == 'log' and change['log_type'] == 'delete':
+        sendLog = checkpage(change)
+        if sendLog['watcher'] is True:
+            edit_send(bot, change)
+
+        if sendLog['stalk'] is True:
+            global_edit(bot, change)
 
 def cssjs(bot, change):
     proj = change['wiki']
@@ -96,9 +103,10 @@ def global_edit(bot, change):
 
     proj = change['wiki']
     fulltitle = str(change['title'])
-    chRev = str(change['revision']['new'])
-    chURL = change['server_url']
-    chDiff = chURL + "/w/index.php?diff=" + chRev
+    if change['type'] != 'log':
+        chRev = str(change['revision']['new'])
+        chURL = change['server_url']
+        chDiff = chURL + "/w/index.php?diff=" + chRev
     chComment = change['comment']
     chNamespace = str(change['namespace'])
     editor = change['user']
@@ -144,11 +152,15 @@ def global_edit(bot, change):
                     newReport = nicks + ": \x02" + fulltitle + "\x02 on " + proj + " was edited by \x02" + editor + "\x02 " + chDiff + " " + chComment
                 elif change['type'] == 'create':
                     newReport = nicks + ": \x02" + fulltitle + "\x02 on " + proj + " was created by \x02" + editor + "\x02 " + chDiff + " " + chComment
+                elif change['type'] == 'log' and change['log_type'] == 'delete':
+                    newReport = nicks + ": \x02" + fulltitle + "\x02 on " + proj + " was deleted by \x02" + editor + "\x02 " + chComment
             else:
                 if change['type'] == 'edit':
                     newReport = "\x02" + fulltitle + "\x02 on " + proj + " was edited by \x02" + editor + "\x02 " + chDiff + " " + chComment
                 elif change['type'] == 'create':
                     newReport = "\x02" + fulltitle + "\x02 on " + proj + " was created by \x02" + editor + "\x02 " + chDiff + " " + chComment
+                elif change['type'] == 'log' and change['log_type'] == 'delete':
+                    newReport = "\x02" + fulltitle + "\x02 on " + proj + " was deleted by \x02" + editor + "\x02 " + chComment
 
             if check_hush(chan) is True:
                 continue
@@ -165,9 +177,10 @@ def edit_send(bot, change):
 
     proj = change['wiki']
     title = str(change['title'])
-    chRev = str(change['revision']['new'])
-    chURL = change['server_url']
-    chDiff = chURL + "/w/index.php?diff=" + chRev
+    if change['type'] != 'log':
+        chRev = str(change['revision']['new'])
+        chURL = change['server_url']
+        chDiff = chURL + "/w/index.php?diff=" + chRev
     chComment = change['comment']
     editor = change['user']
     space = u'\u200B'
@@ -205,11 +218,15 @@ def edit_send(bot, change):
                     newReport = nicks + ": \x02" + title + "\x02 on " + proj + " was edited by \x02" + editor + "\x02 " + chDiff + " " + chComment
                 elif change['type'] == 'create':
                     newReport = nicks + ": \x02" + title + "\x02 on " + proj + " was created by \x02" + editor + "\x02 " + chDiff + " " + chComment
+                elif change['type'] == 'log' and change['log_type'] == 'delete':
+                    newReport = nicks + ": \x02" + title + "\x02 on " + proj + " was deleted by \x02" + editor + "\x02 " + chComment
             else:
                 if change['type'] == 'edit':
                     newReport = "\x02" + title + "\x02 on " + proj + " was edited by \x02" + editor + "\x02 " + chDiff + " " + chComment
                 elif change['type'] == 'create':
                     newReport = "\x02" + title + "\x02 on " + proj + " was created by \x02" + editor + "\x02 " + chDiff + " " + chComment
+                elif change['type'] == 'log' and change['log_type'] == 'delete':
+                    newReport = "\x02" + title + "\x02 on " + proj + " was deleted by \x02" + editor + "\x02 " + chComment
 
             if check_hush(chan) is True:
                 continue

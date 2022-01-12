@@ -7,15 +7,15 @@ from sopel import module
 from sseclient import SSEClient as EventSource
 
 
-DB = 'wiki.db'
+DB = "wiki.db"
 
 
 def setup(bot):
     stop_event = threading.Event()
     url = "https://stream.wikimedia.org/v2/stream/recentchange"
     listen = threading.Thread(target=listener, args=(bot, url, stop_event))
-    bot.memory['wikistream_stop'] = stop_event
-    bot.memory['wikistream_listener'] = listen
+    bot.memory["wikistream_stop"] = stop_event
+    bot.memory["wikistream_listener"] = listen
 
 
 def listener(bot, url, stop_event):
@@ -24,7 +24,7 @@ def listener(bot, url, stop_event):
             if stop_event.is_set():
                 return
             else:
-                if event.event == 'message':
+                if event.event == "message":
                     try:
                         change = json.loads(event.data)
                         dispatch(bot, change)
@@ -35,82 +35,97 @@ def listener(bot, url, stop_event):
 
 def dispatch(bot, change):
 
-    if change['type'] == 'edit' or change['type'] == 'new':
+    if change["type"] == "edit" or change["type"] == "new":
         sendLog = checkpage(change)
-        if sendLog['watcher'] is True:
+        if sendLog["watcher"] is True:
             edit_send(bot, change)
 
-        if sendLog['stalk'] is True:
+        if sendLog["stalk"] is True:
             global_edit(bot, change)
 
-        if re.search(r'.*\.css$', change['title']) or re.search(r'.*\.js$', change['title']):
+        if re.search(r".*\.css$", change["title"]) or re.search(
+            r".*\.js$", change["title"]
+        ):
             cssjs(bot, change)
-    elif change['type'] == 'log' and change['log_type'] == 'delete':
+    elif change["type"] == "log" and change["log_type"] == "delete":
         sendLog = checkpage(change)
-        if sendLog['watcher'] is True:
+        if sendLog["watcher"] is True:
             edit_send(bot, change)
 
-        if sendLog['stalk'] is True:
+        if sendLog["stalk"] is True:
             global_edit(bot, change)
+
 
 def cssjs(bot, change):
-    proj = change['wiki']
-    title = str(change['title'])
-    chRev = str(change['revision']['new'])
-    chURL = change['server_url']
-    chDiff = chURL + "/w/index.php?diff=" + chRev + '&safemode=1'
-    chComment = change['comment']
-    editor = change['user']
-    space = u'\u200B'
+    proj = change["wiki"]
+    title = str(change["title"])
+    chRev = str(change["revision"]["new"])
+    chURL = change["server_url"]
+    chDiff = chURL + "/w/index.php?diff=" + chRev + "&safemode=1"
+    chComment = change["comment"]
+    editor = change["user"]
+    space = u"\u200B"
     editor = editor[:2] + space + editor[2:]
 
-    bot.say("\x02" + title + "\x02 on " + proj + " was edited by \x02" + editor + "\x02 " + chDiff + " " + chComment, '#wikimedia-cssjs')
+    bot.say(
+        "\x02"
+        + title
+        + "\x02 on "
+        + proj
+        + " was edited by \x02"
+        + editor
+        + "\x02 "
+        + chDiff
+        + " "
+        + chComment,
+        "#wikimedia-cssjs",
+    )
 
 
 def checkpage(change):
-    sendLog = {
-        'watcher': False,
-        'stalk': False
-    }
+    sendLog = {"watcher": False, "stalk": False}
 
-    proj = change['wiki']
+    proj = change["wiki"]
 
     try:
-        nspace, title = str(change['title']).split(':', 1)
+        nspace, title = str(change["title"]).split(":", 1)
     except ValueError:
-        title = str(change['title'])
+        title = str(change["title"])
 
     db = sqlite3.connect(DB)
     c = db.cursor()
 
-    proj_exists = c.execute('''SELECT name FROM sqlite_master WHERE type='table' AND name=?;''', (proj,)).fetchone()
-    stalk_exists = c.execute('''SELECT title FROM global_watch WHERE title=?;''', (title,)).fetchall()
+    proj_exists = c.execute(
+        """SELECT name FROM sqlite_master WHERE type='table' AND name=?;""", (proj,)
+    ).fetchone()
+    stalk_exists = c.execute(
+        """SELECT title FROM global_watch WHERE title=?;""", (title,)
+    ).fetchall()
 
     db.close()
 
     if proj_exists is not None and len(proj_exists) > 0:
-        sendLog['watcher'] = True
+        sendLog["watcher"] = True
 
     if stalk_exists is not None and len(stalk_exists) > 0:
-        sendLog['stalk'] = True
+        sendLog["stalk"] = True
 
     return sendLog
 
 
-
 def global_edit(bot, change):
-    """ title / namespace / nick / channel / notify """
+    """title / namespace / nick / channel / notify"""
 
-    proj = change['wiki']
-    fulltitle = str(change['title'])
-    if change['type'] != 'log':
-        chRev = str(change['revision']['new'])
-        chURL = change['server_url']
+    proj = change["wiki"]
+    fulltitle = str(change["title"])
+    if change["type"] != "log":
+        chRev = str(change["revision"]["new"])
+        chURL = change["server_url"]
         chDiff = chURL + "/w/index.php?diff=" + chRev
-    chComment = change['comment']
-    chNamespace = str(change['namespace'])
-    editor = change['user']
-    space = u'\u200B'
+    chComment = change["comment"]
+    chNamespace = str(change["namespace"])
+    editor = change["user"]
+    space = u"\u200B"
     editor = editor[:2] + space + editor[2:]
 
     try:
@@ -124,7 +139,9 @@ def global_edit(bot, change):
     c = db.cursor()
 
     try:
-        check = c.execute('''SELECT * FROM global_watch where title="%s";''' % (title)).fetchall()
+        check = c.execute(
+            """SELECT * FROM global_watch where title="%s";""" % (title)
+        ).fetchall()
     except:
         return
 
@@ -132,15 +149,23 @@ def global_edit(bot, change):
         channels = []
 
         for record in check:
-            target_title, target_namespace, target_nick, target_channel, target_notify = record
+            (
+                target_title,
+                target_namespace,
+                target_nick,
+                target_channel,
+                target_notify,
+            ) = record
             if target_namespace == chNamespace:
                 channels.append(target_channel)
         channels = list(dict.fromkeys(channels))  # Collapse duplicate channels
 
         for chan in channels:
             nicks = ""
-            pgNicks = c.execute('SELECT nick from global_watch where title="%s" and namespace="%s" and channel="%s" and notify="on";' % (
-                title, chNamespace, chan)).fetchall()
+            pgNicks = c.execute(
+                'SELECT nick from global_watch where title="%s" and namespace="%s" and channel="%s" and notify="on";'
+                % (title, chNamespace, chan)
+            ).fetchall()
 
             if len(pgNicks) > 0:
                 for nick in pgNicks:
@@ -148,19 +173,84 @@ def global_edit(bot, change):
                         nicks = nick[0]
                     else:
                         nicks = nick[0] + " " + nicks
-                if change['type'] == 'edit':
-                    newReport = nicks + ": \x02" + fulltitle + "\x02 on " + proj + " was edited by \x02" + editor + "\x02 " + chDiff + " " + chComment
-                elif change['type'] == 'create':
-                    newReport = nicks + ": \x02" + fulltitle + "\x02 on " + proj + " was created by \x02" + editor + "\x02 " + chDiff + " " + chComment
-                elif change['type'] == 'log' and change['log_type'] == 'delete':
-                    newReport = nicks + ": \x02" + fulltitle + "\x02 on " + proj + " was deleted by \x02" + editor + "\x02 " + chComment
+                if change["type"] == "edit":
+                    newReport = (
+                        nicks
+                        + ": \x02"
+                        + fulltitle
+                        + "\x02 on "
+                        + proj
+                        + " was edited by \x02"
+                        + editor
+                        + "\x02 "
+                        + chDiff
+                        + " "
+                        + chComment
+                    )
+                elif change["type"] == "create":
+                    newReport = (
+                        nicks
+                        + ": \x02"
+                        + fulltitle
+                        + "\x02 on "
+                        + proj
+                        + " was created by \x02"
+                        + editor
+                        + "\x02 "
+                        + chDiff
+                        + " "
+                        + chComment
+                    )
+                elif change["type"] == "log" and change["log_type"] == "delete":
+                    newReport = (
+                        nicks
+                        + ": \x02"
+                        + fulltitle
+                        + "\x02 on "
+                        + proj
+                        + " was deleted by \x02"
+                        + editor
+                        + "\x02 "
+                        + chComment
+                    )
             else:
-                if change['type'] == 'edit':
-                    newReport = "\x02" + fulltitle + "\x02 on " + proj + " was edited by \x02" + editor + "\x02 " + chDiff + " " + chComment
-                elif change['type'] == 'create':
-                    newReport = "\x02" + fulltitle + "\x02 on " + proj + " was created by \x02" + editor + "\x02 " + chDiff + " " + chComment
-                elif change['type'] == 'log' and change['log_type'] == 'delete':
-                    newReport = "\x02" + fulltitle + "\x02 on " + proj + " was deleted by \x02" + editor + "\x02 " + chComment
+                if change["type"] == "edit":
+                    newReport = (
+                        "\x02"
+                        + fulltitle
+                        + "\x02 on "
+                        + proj
+                        + " was edited by \x02"
+                        + editor
+                        + "\x02 "
+                        + chDiff
+                        + " "
+                        + chComment
+                    )
+                elif change["type"] == "create":
+                    newReport = (
+                        "\x02"
+                        + fulltitle
+                        + "\x02 on "
+                        + proj
+                        + " was created by \x02"
+                        + editor
+                        + "\x02 "
+                        + chDiff
+                        + " "
+                        + chComment
+                    )
+                elif change["type"] == "log" and change["log_type"] == "delete":
+                    newReport = (
+                        "\x02"
+                        + fulltitle
+                        + "\x02 on "
+                        + proj
+                        + " was deleted by \x02"
+                        + editor
+                        + "\x02 "
+                        + chComment
+                    )
 
             if check_hush(chan) is True:
                 continue
@@ -172,18 +262,17 @@ def global_edit(bot, change):
         db.close()
 
 
-
 def edit_send(bot, change):
 
-    proj = change['wiki']
-    title = str(change['title'])
-    if change['type'] != 'log':
-        chRev = str(change['revision']['new'])
-        chURL = change['server_url']
+    proj = change["wiki"]
+    title = str(change["title"])
+    if change["type"] != "log":
+        chRev = str(change["revision"]["new"])
+        chURL = change["server_url"]
         chDiff = chURL + "/w/index.php?diff=" + chRev
-    chComment = change['comment']
-    editor = change['user']
-    space = u'\u200B'
+    chComment = change["comment"]
+    editor = change["user"]
+    space = u"\u200B"
     editor = editor[:2] + space + editor[2:]
     check = None
 
@@ -191,7 +280,9 @@ def edit_send(bot, change):
     c = db.cursor()
 
     try:
-        check = c.execute('''SELECT * FROM %s where page="%s";''' % (proj, title)).fetchall()
+        check = c.execute(
+            """SELECT * FROM %s where page="%s";""" % (proj, title)
+        ).fetchall()
     except:
         return
 
@@ -205,8 +296,10 @@ def edit_send(bot, change):
 
         for chan in channels:
             nicks = ""
-            pgNicks = c.execute('SELECT nick from %s where page="%s" and channel="%s" and notify="on";' % (
-                proj, title, chan)).fetchall()
+            pgNicks = c.execute(
+                'SELECT nick from %s where page="%s" and channel="%s" and notify="on";'
+                % (proj, title, chan)
+            ).fetchall()
 
             if len(pgNicks) > 0:
                 for nick in pgNicks:
@@ -214,19 +307,84 @@ def edit_send(bot, change):
                         nicks = nick[0]
                     else:
                         nicks = nick[0] + " " + nicks
-                if change['type'] == 'edit':
-                    newReport = nicks + ": \x02" + title + "\x02 on " + proj + " was edited by \x02" + editor + "\x02 " + chDiff + " " + chComment
-                elif change['type'] == 'create':
-                    newReport = nicks + ": \x02" + title + "\x02 on " + proj + " was created by \x02" + editor + "\x02 " + chDiff + " " + chComment
-                elif change['type'] == 'log' and change['log_type'] == 'delete':
-                    newReport = nicks + ": \x02" + title + "\x02 on " + proj + " was deleted by \x02" + editor + "\x02 " + chComment
+                if change["type"] == "edit":
+                    newReport = (
+                        nicks
+                        + ": \x02"
+                        + title
+                        + "\x02 on "
+                        + proj
+                        + " was edited by \x02"
+                        + editor
+                        + "\x02 "
+                        + chDiff
+                        + " "
+                        + chComment
+                    )
+                elif change["type"] == "create":
+                    newReport = (
+                        nicks
+                        + ": \x02"
+                        + title
+                        + "\x02 on "
+                        + proj
+                        + " was created by \x02"
+                        + editor
+                        + "\x02 "
+                        + chDiff
+                        + " "
+                        + chComment
+                    )
+                elif change["type"] == "log" and change["log_type"] == "delete":
+                    newReport = (
+                        nicks
+                        + ": \x02"
+                        + title
+                        + "\x02 on "
+                        + proj
+                        + " was deleted by \x02"
+                        + editor
+                        + "\x02 "
+                        + chComment
+                    )
             else:
-                if change['type'] == 'edit':
-                    newReport = "\x02" + title + "\x02 on " + proj + " was edited by \x02" + editor + "\x02 " + chDiff + " " + chComment
-                elif change['type'] == 'create':
-                    newReport = "\x02" + title + "\x02 on " + proj + " was created by \x02" + editor + "\x02 " + chDiff + " " + chComment
-                elif change['type'] == 'log' and change['log_type'] == 'delete':
-                    newReport = "\x02" + title + "\x02 on " + proj + " was deleted by \x02" + editor + "\x02 " + chComment
+                if change["type"] == "edit":
+                    newReport = (
+                        "\x02"
+                        + title
+                        + "\x02 on "
+                        + proj
+                        + " was edited by \x02"
+                        + editor
+                        + "\x02 "
+                        + chDiff
+                        + " "
+                        + chComment
+                    )
+                elif change["type"] == "create":
+                    newReport = (
+                        "\x02"
+                        + title
+                        + "\x02 on "
+                        + proj
+                        + " was created by \x02"
+                        + editor
+                        + "\x02 "
+                        + chDiff
+                        + " "
+                        + chComment
+                    )
+                elif change["type"] == "log" and change["log_type"] == "delete":
+                    newReport = (
+                        "\x02"
+                        + title
+                        + "\x02 on "
+                        + proj
+                        + " was deleted by \x02"
+                        + editor
+                        + "\x02 "
+                        + chComment
+                    )
 
             if check_hush(chan) is True:
                 continue
@@ -237,12 +395,13 @@ def edit_send(bot, change):
     else:
         db.close()
 
+
 def check_hush(channel):
     db = sqlite3.connect(DB)
     c = db.cursor()
 
     hushCheck = c.execute(
-        '''SELECT * FROM hushchannels WHERE channel="%s";''' % channel
+        """SELECT * FROM hushchannels WHERE channel="%s";""" % channel
     ).fetchall()
 
     db.close()
@@ -257,7 +416,9 @@ def check_gswiki(project):
     db = sqlite3.connect(DB)
     c = db.cursor()
 
-    check = c.execute('''SELECT * FROM GSwikis WHERE project="%s";''' % project).fetchall()
+    check = c.execute(
+        """SELECT * FROM GSwikis WHERE project="%s";""" % project
+    ).fetchall()
 
     db.close()
 
@@ -267,48 +428,86 @@ def check_gswiki(project):
         return False
 
 
-
 def watcherAdd(msg, nick, chan):
     db = sqlite3.connect(DB)
     c = db.cursor()
 
-    action, project, page = msg.split(' ', 2)
+    action, project, page = msg.split(" ", 2)
 
     checkTable = c.execute(
-        '''SELECT count(*) FROM sqlite_master WHERE type="table" AND name="%s";''' % project).fetchone()
+        """SELECT count(*) FROM sqlite_master WHERE type="table" AND name="%s";"""
+        % project
+    ).fetchone()
     if checkTable[0] == 0:
         try:
-            c.execute('''CREATE TABLE %s (page TEXT, nick TEXT, channel TEXT, notify TEXT);''' % project)
+            c.execute(
+                """CREATE TABLE %s (page TEXT, nick TEXT, channel TEXT, notify TEXT);"""
+                % project
+            )
             db.commit()
         except Exception as e:
-            response = "Ugh... Something blew up creating the table. Operator873 help me. " + str(e)
+            response = (
+                "Ugh... Something blew up creating the table. Operator873 help me. "
+                + str(e)
+            )
             db.close()
             return response
 
         # Check to see if we have the table
         check = c.execute(
-            '''SELECT count(*) FROM sqlite_master WHERE type="table" AND name="%s";''' % project).fetchone()
+            """SELECT count(*) FROM sqlite_master WHERE type="table" AND name="%s";"""
+            % project
+        ).fetchone()
         if check[0] == 0:
-            response = "Ugh... Something blew up finding the new table: (" + check + ") Operator873 help me."
+            response = (
+                "Ugh... Something blew up finding the new table: ("
+                + check
+                + ") Operator873 help me."
+            )
             db.close()
             return response
 
     pageExists = c.execute(
-        '''SELECT * from %s WHERE page="%s" AND nick="%s" AND channel="%s";''' % (project, page, nick, chan)).fetchone()
+        """SELECT * from %s WHERE page="%s" AND nick="%s" AND channel="%s";"""
+        % (project, page, nick, chan)
+    ).fetchone()
     if pageExists is None:
         try:
-            c.execute('''INSERT INTO %s VALUES("%s", "%s", "%s", "off");''' % (project, page, nick, chan))
+            c.execute(
+                """INSERT INTO %s VALUES("%s", "%s", "%s", "off");"""
+                % (project, page, nick, chan)
+            )
             db.commit()
         except Exception as e:
-            response = "Ugh... Something blew up adding the page to the table: " + str(e) + ". Operator873 help me."
+            response = (
+                "Ugh... Something blew up adding the page to the table: "
+                + str(e)
+                + ". Operator873 help me."
+            )
             db.close()
             return response
-        check = c.execute('''SELECT * FROM %s WHERE page="%s" AND nick="%s" AND channel="%s";''' % (
-        project, page, nick, chan)).fetchone()
+        check = c.execute(
+            """SELECT * FROM %s WHERE page="%s" AND nick="%s" AND channel="%s";"""
+            % (project, page, nick, chan)
+        ).fetchone()
         rePage, reNick, reChan, reNotify = check
-        response = nick + ": I will report changes to " + page + " on " + project + " with no ping."
+        response = (
+            nick
+            + ": I will report changes to "
+            + page
+            + " on "
+            + project
+            + " with no ping."
+        )
     else:
-        response = nick + ": you are already watching " + page + " on " + project + " in this channel."
+        response = (
+            nick
+            + ": you are already watching "
+            + page
+            + " on "
+            + project
+            + " in this channel."
+        )
 
     db.close()
     return response
@@ -318,69 +517,117 @@ def watcherDel(msg, nick, chan):
     db = sqlite3.connect(DB)
     c = db.cursor()
 
-    action, project, page = msg.split(' ', 2)
+    action, project, page = msg.split(" ", 2)
 
     checkPage = c.execute(
-        '''SELECT * FROM %s WHERE page="%s" AND nick="%s" AND channel="%s";''' % (project, page, nick, chan)).fetchone()
+        """SELECT * FROM %s WHERE page="%s" AND nick="%s" AND channel="%s";"""
+        % (project, page, nick, chan)
+    ).fetchone()
     if checkPage is not None:
         try:
             c.execute(
-                '''DELETE FROM %s WHERE page="%s" AND nick="%s" AND channel="%s";''' % (project, page, nick, chan))
+                """DELETE FROM %s WHERE page="%s" AND nick="%s" AND channel="%s";"""
+                % (project, page, nick, chan)
+            )
             db.commit()
-            response = "%s: I will no longer report changes to %s on %s in this channel for you" % (nick, page, project)
+            response = (
+                "%s: I will no longer report changes to %s on %s in this channel for you"
+                % (nick, page, project)
+            )
         except:
             response = "Ugh... Something blew up. Operator873 help me."
     else:
-        response = "%s: it doesn't look like I'm reporting changes to %s on %s in this channel for you." % (
-        nick, page, project)
+        response = (
+            "%s: it doesn't look like I'm reporting changes to %s on %s in this channel for you."
+            % (nick, page, project)
+        )
 
     db.close()
     return response
+
 
 def watcherPing(msg, nick, chan):
     db = sqlite3.connect(DB)
     c = db.cursor()
 
-    action, switch, project, page = msg.split(' ', 3)
+    action, switch, project, page = msg.split(" ", 3)
 
     if switch.lower() == "on" or switch.lower() == "off":
-        c.execute('''UPDATE %s set notify="%s" where page="%s" and nick="%s" and channel="%s";''' % (
-        project, switch, page, nick, chan))
+        c.execute(
+            """UPDATE %s set notify="%s" where page="%s" and nick="%s" and channel="%s";"""
+            % (project, switch, page, nick, chan)
+        )
         db.commit()
-        response = "Ping set to " + switch + " for " + page + " on " + project + " in this channel."
+        response = (
+            "Ping set to "
+            + switch
+            + " for "
+            + page
+            + " on "
+            + project
+            + " in this channel."
+        )
     else:
-        response = "Malformed command! Try: !watch ping {on/off} project The page you want"
+        response = (
+            "Malformed command! Try: !watch ping {on/off} project The page you want"
+        )
 
     db.close()
 
     return response
+
 
 def globalWatcherAdd(msg, nick, chan):
     # !globalwatch add namespaceid title
     db = sqlite3.connect(DB)
     c = db.cursor()
 
-    action, nspace, title = msg.split(' ', 2)
+    action, nspace, title = msg.split(" ", 2)
 
-    checkExisting = c.execute('''SELECT * FROM global_watch WHERE title=? AND namespace=? AND nick=? AND channel=?;''',
-                              (title, nspace, nick, chan)).fetchone()
+    checkExisting = c.execute(
+        """SELECT * FROM global_watch WHERE title=? AND namespace=? AND nick=? AND channel=?;""",
+        (title, nspace, nick, chan),
+    ).fetchone()
 
     if checkExisting is None:
         try:
-            c.execute('''INSERT INTO global_watch VALUES(?, ?, ?, ?, ?);''', (title, nspace, nick, chan, "off"))
+            c.execute(
+                """INSERT INTO global_watch VALUES(?, ?, ?, ?, ?);""",
+                (title, nspace, nick, chan, "off"),
+            )
             db.commit()
         except Exception as e:
-            response = "Ugh... Something blew up adding the page to the table: " + str(e) + ". Operator873 help me."
+            response = (
+                "Ugh... Something blew up adding the page to the table: "
+                + str(e)
+                + ". Operator873 help me."
+            )
             db.close()
             return response
-        check = c.execute('''SELECT * FROM global_watch WHERE title=? AND namespace=? AND nick=? AND channel=?;''',
-                              (title, nspace, nick, chan)).fetchone()
+        check = c.execute(
+            """SELECT * FROM global_watch WHERE title=? AND namespace=? AND nick=? AND channel=?;""",
+            (title, nspace, nick, chan),
+        ).fetchone()
 
         page, space, user, channel, ping = check
 
-        response = user + ": I will report changes to " + page + " in namespace " + space + " on all projects with no ping."
+        response = (
+            user
+            + ": I will report changes to "
+            + page
+            + " in namespace "
+            + space
+            + " on all projects with no ping."
+        )
     else:
-        response = nick + ": you are already globally watching " + nspace + ":" + page + " in this channel."
+        response = (
+            nick
+            + ": you are already globally watching "
+            + nspace
+            + ":"
+            + page
+            + " in this channel."
+        )
 
     db.close()
     return response
@@ -391,47 +638,78 @@ def globalWatcherDel(msg, nick, chan):
     db = sqlite3.connect(DB)
     c = db.cursor()
 
-    action, nspace, title = msg.split(' ', 2)
+    action, nspace, title = msg.split(" ", 2)
 
-    checkExisting = c.execute('''SELECT * FROM global_watch WHERE title=? AND namespace=? AND nick=? AND channel=?;''',
-                              (title, nspace, nick, chan)).fetchone()
+    checkExisting = c.execute(
+        """SELECT * FROM global_watch WHERE title=? AND namespace=? AND nick=? AND channel=?;""",
+        (title, nspace, nick, chan),
+    ).fetchone()
 
     if checkExisting is not None:
         try:
-            c.execute('''DELETE FROM global_watch WHERE title=? AND namespace=? AND nick=? AND channel=?;''',
-                      (title, nspace, nick, chan))
+            c.execute(
+                """DELETE FROM global_watch WHERE title=? AND namespace=? AND nick=? AND channel=?;""",
+                (title, nspace, nick, chan),
+            )
             db.commit()
         except Exception as e:
             response = str(e)
             db.close()
             return response
 
-        check = c.execute('''SELECT * FROM global_watch WHERE title=? AND namespace=? AND nick=? AND channel=?;''',
-                          (title, nspace, nick, chan)).fetchone()
+        check = c.execute(
+            """SELECT * FROM global_watch WHERE title=? AND namespace=? AND nick=? AND channel=?;""",
+            (title, nspace, nick, chan),
+        ).fetchone()
 
         if check is None:
-            response = nick + ": I will no longer report changes to " + title + " in namespace " + nspace + "."
+            response = (
+                nick
+                + ": I will no longer report changes to "
+                + title
+                + " in namespace "
+                + nspace
+                + "."
+            )
         else:
             response = "Confirmation failed. Pinging Operator873"
     else:
-        response = nick + ": you are not globally watching " + nspace + ":" + title + " in this channel."
+        response = (
+            nick
+            + ": you are not globally watching "
+            + nspace
+            + ":"
+            + title
+            + " in this channel."
+        )
 
     db.close()
     return response
+
 
 def globalWatcherPing(msg, nick, chan):
     # !globalwatch ping on namespaceid title
     db = sqlite3.connect(DB)
     c = db.cursor()
 
-    action, switch, nspace, title = msg.split(' ', 3)
+    action, switch, nspace, title = msg.split(" ", 3)
     switch = switch.lower()
 
     if switch == "on" or switch == "off":
-        c.execute('''UPDATE global_watch SET notify=? WHERE title=? AND namespace=? AND nick=? AND channel=?;''',
-                  (switch, title, nspace, nick, chan)).fetchone()
+        c.execute(
+            """UPDATE global_watch SET notify=? WHERE title=? AND namespace=? AND nick=? AND channel=?;""",
+            (switch, title, nspace, nick, chan),
+        ).fetchone()
         db.commit()
-        response = "Ping set to " + switch + " for " + title + " in namespace " + nspace + " in this channel."
+        response = (
+            "Ping set to "
+            + switch
+            + " for "
+            + title
+            + " in namespace "
+            + nspace
+            + " in this channel."
+        )
     else:
         response = "Malformed command! Try: !globalwatch ping {on/off} namespaceID The page you want"
 
@@ -439,16 +717,21 @@ def globalWatcherPing(msg, nick, chan):
 
     return response
 
-@module.commands('speak')
+
+@module.commands("speak")
 def watcherSpeak(bot, trigger):
     db = sqlite3.connect(DB)
     c = db.cursor()
 
-    doesExist = c.execute('''SELECT * FROM hushchannels WHERE channel="%s";''' % trigger.sender).fetchall()
+    doesExist = c.execute(
+        """SELECT * FROM hushchannels WHERE channel="%s";""" % trigger.sender
+    ).fetchall()
 
     if len(doesExist) > 0:
         try:
-            c.execute('''DELETE FROM hushchannels WHERE channel="%s";''' % trigger.sender)
+            c.execute(
+                """DELETE FROM hushchannels WHERE channel="%s";""" % trigger.sender
+            )
             db.commit()
             bot.say("Alright! Back to business.")
         except:
@@ -459,33 +742,48 @@ def watcherSpeak(bot, trigger):
         bot.say(trigger.nick + ": I'm already in 'speak' mode.")
 
 
-@module.commands('hush')
-@module.commands('mute')
+@module.commands("hush")
+@module.commands("mute")
 def watcherHush(bot, trigger):
 
     db = sqlite3.connect(DB)
     c = db.cursor()
 
     import time
+
     now = time.time()
     timestamp = time.ctime(now)
 
-    doesExist = c.execute('''SELECT * FROM hushchannels WHERE channel="%s";''' % trigger.sender).fetchall()
+    doesExist = c.execute(
+        """SELECT * FROM hushchannels WHERE channel="%s";""" % trigger.sender
+    ).fetchall()
 
     if len(doesExist) > 0:
         chan, nick, time = doesExist[0]
-        bot.say(trigger.nick + ": I'm already hushed by " + nick + " since " + time + ".")
+        bot.say(
+            trigger.nick + ": I'm already hushed by " + nick + " since " + time + "."
+        )
         db.close()
     else:
-        if trigger.sender == "#wikimedia-gs-internal" or trigger.sender == "#wikimedia-gs" or trigger.sender == "##OperTestBed":
-            isGS = c.execute('''SELECT account from globalsysops where nick="%s";''' % trigger.nick).fetchall()
+        if (
+            trigger.sender == "#wikimedia-gs-internal"
+            or trigger.sender == "#wikimedia-gs"
+            or trigger.sender == "##OperTestBed"
+        ):
+            isGS = c.execute(
+                """SELECT account from globalsysops where nick="%s";""" % trigger.nick
+            ).fetchall()
             if len(isGS) > 0:
                 try:
-                    c.execute('''INSERT INTO hushchannels VALUES("%s", "%s", "%s");''' % (
-                    trigger.sender, trigger.nick, timestamp))
+                    c.execute(
+                        """INSERT INTO hushchannels VALUES("%s", "%s", "%s");"""
+                        % (trigger.sender, trigger.nick, timestamp)
+                    )
                     db.commit()
-                    check = c.execute('''SELECT * FROM hushchannels WHERE channel="%s";''' % trigger.sender).fetchall()[
-                        0]
+                    check = c.execute(
+                        """SELECT * FROM hushchannels WHERE channel="%s";"""
+                        % trigger.sender
+                    ).fetchall()[0]
                     chan, nick, time = check
                     bot.say(nick + " hushed! " + time)
                     db.close()
@@ -494,54 +792,70 @@ def watcherHush(bot, trigger):
 
         else:
             try:
-                c.execute('''INSERT INTO hushchannels VALUES("%s", "%s", "%s");''' % (
-                trigger.sender, trigger.nick, timestamp))
+                c.execute(
+                    """INSERT INTO hushchannels VALUES("%s", "%s", "%s");"""
+                    % (trigger.sender, trigger.nick, timestamp)
+                )
                 db.commit()
             except:
                 bot.say("Ugh... something blew up. Help me Operator873")
             finally:
-                check = c.execute('''SELECT * FROM hushchannels WHERE channel="%s";''' % trigger.sender).fetchall()[0]
+                check = c.execute(
+                    """SELECT * FROM hushchannels WHERE channel="%s";"""
+                    % trigger.sender
+                ).fetchall()[0]
                 chan, nick, time = check
                 bot.say(nick + " hushed! " + time)
                 db.close()
 
 
-@module.require_admin(message="This function is only available to Operator873 and bot admins.")
-@module.commands('watchstart')
+@module.require_admin(
+    message="This function is only available to Operator873 and bot admins."
+)
+@module.commands("watchstart")
 def start_listener(bot, trigger):
-    if 'wikistream_listener' not in bot.memory:
+    if "wikistream_listener" not in bot.memory:
         stop_event = threading.Event()
-        bot.memory['wikistream_stop'] = stop_event
+        bot.memory["wikistream_stop"] = stop_event
         url = "https://stream.wikimedia.org/v2/stream/recentchange"
-        listen = threading.Thread(target=listener, args=(bot, url, bot.memory['wikistream_stop']))
-        bot.memory['wikistream_listener'] = listen
-    bot.memory['wikistream_listener'].start()
-    bot.say('Listening to EventStream...')
+        listen = threading.Thread(
+            target=listener, args=(bot, url, bot.memory["wikistream_stop"])
+        )
+        bot.memory["wikistream_listener"] = listen
+    bot.memory["wikistream_listener"].start()
+    bot.say("Listening to EventStream...")
 
 
 @module.interval(120)
 def checkListener(bot):
-    if bot.memory['wikistream_listener'].is_alive() is not True:
-        del bot.memory['wikistream_listener']
-        del bot.memory['wikistream_stop']
+    if bot.memory["wikistream_listener"].is_alive() is not True:
+        del bot.memory["wikistream_listener"]
+        del bot.memory["wikistream_stop"]
 
         stop_event = threading.Event()
-        bot.memory['wikistream_stop'] = stop_event
+        bot.memory["wikistream_stop"] = stop_event
         url = "https://stream.wikimedia.org/v2/stream/recentchange"
 
-        listen = threading.Thread(target=listener, args=(bot, url, bot.memory['wikistream_stop']))
+        listen = threading.Thread(
+            target=listener, args=(bot, url, bot.memory["wikistream_stop"])
+        )
 
-        bot.memory['wikistream_listener'] = listen
-        bot.memory['wikistream_listener'].start()
+        bot.memory["wikistream_listener"] = listen
+        bot.memory["wikistream_listener"].start()
         # bot.say("Restarted listener", "Operator873")
     else:
         pass
 
 
-@module.require_admin(message="This function is only available to Operator873 and bot admins.")
-@module.commands('watchstatus')
+@module.require_admin(
+    message="This function is only available to Operator873 and bot admins."
+)
+@module.commands("watchstatus")
 def watchStatus(bot, trigger):
-    if 'wikistream_listener' in bot.memory and bot.memory['wikistream_listener'].is_alive() is True:
+    if (
+        "wikistream_listener" in bot.memory
+        and bot.memory["wikistream_listener"].is_alive() is True
+    ):
         msg = "Listener is alive."
     else:
         msg = "Listener is dead."
@@ -549,28 +863,37 @@ def watchStatus(bot, trigger):
     bot.say(msg)
 
 
-@module.require_admin(message="This function is only available to Operator873 and bot admins.")
-@module.commands('watchstop')
+@module.require_admin(
+    message="This function is only available to Operator873 and bot admins."
+)
+@module.commands("watchstop")
 def watchStop(bot, trigger):
-    if 'wikistream_listener' not in bot.memory:
+    if "wikistream_listener" not in bot.memory:
         bot.say("Listener isn't running.")
     else:
         try:
-            bot.memory['wikistream_stop'].set()
-            del bot.memory['wikistream_listener']
+            bot.memory["wikistream_stop"].set()
+            del bot.memory["wikistream_listener"]
             bot.say("Listener stopped.")
         except Exception as e:
             bot.say(str(e))
 
 
-@module.require_admin(message="This function is only available to Operator873 and bot admins.")
-@module.commands('addmember')
+@module.require_admin(
+    message="This function is only available to Operator873 and bot admins."
+)
+@module.commands("addmember")
 def addGS(bot, trigger):
     db = sqlite3.connect(DB)
     c = db.cursor()
-    c.execute('''INSERT INTO globalsysops VALUES("%s", "%s");''' % (trigger.group(3), trigger.group(4)))
+    c.execute(
+        """INSERT INTO globalsysops VALUES("%s", "%s");"""
+        % (trigger.group(3), trigger.group(4))
+    )
     db.commit()
-    nickCheck = c.execute('''SELECT nick FROM globalsysops where account="%s";''' % trigger.group(4)).fetchall()
+    nickCheck = c.execute(
+        """SELECT nick FROM globalsysops where account="%s";""" % trigger.group(4)
+    ).fetchall()
     nicks = ""
     for nick in nickCheck:
         if nicks == "":
@@ -578,26 +901,35 @@ def addGS(bot, trigger):
         else:
             nicks = nicks + " " + nick[0]
     db.close()
-    bot.say("Wikipedia account " + trigger.group(4) + " is now known by IRC nick(s): " + nicks)
+    bot.say(
+        "Wikipedia account "
+        + trigger.group(4)
+        + " is now known by IRC nick(s): "
+        + nicks
+    )
 
 
-@module.require_admin(message="This function is only available to Operator873 and bot admins.")
-@module.commands('removemember')
+@module.require_admin(
+    message="This function is only available to Operator873 and bot admins."
+)
+@module.commands("removemember")
 def delGS(bot, trigger):
     db = sqlite3.connect(DB)
     c = db.cursor()
-    c.execute('''DELETE FROM globalsysops WHERE account="%s";''' % trigger.group(3))
+    c.execute("""DELETE FROM globalsysops WHERE account="%s";""" % trigger.group(3))
     db.commit()
     checkWork = None
     try:
-        checkWork = c.execute('''SELECT nick FROM globalsysops WHERE account="%s";''' % trigger.group(3)).fetchall()
+        checkWork = c.execute(
+            """SELECT nick FROM globalsysops WHERE account="%s";""" % trigger.group(3)
+        ).fetchall()
         bot.say("All nicks for " + trigger.group(3) + " have been purged.")
     except:
         bot.say("Ugh... Something blew up. Help me Operator873.")
 
 
 @module.require_chanmsg(message="This message must be used in the channel")
-@module.commands('watch')
+@module.commands("watch")
 def watch(bot, trigger):
     watchAction = trigger.group(3)
     if watchAction == "add" or watchAction == "Add" or watchAction == "+":
@@ -622,57 +954,66 @@ def watch(bot, trigger):
 # !globalwatch ping on namespaceid title
 # !globalwatch add namespaceid title
 @module.require_chanmsg(message="This message must be used in the channel")
-@module.commands('globalwatch')
+@module.commands("globalwatch")
 def gwatch(bot, trigger):
     watchAction = trigger.group(3)
     if watchAction == "add" or watchAction == "Add" or watchAction == "+":
         if trigger.group(5) == "" or trigger.group(5) is None:
-            bot.say("Command seems malformed. Syntax: !globalwatch add namespaceID page")
+            bot.say(
+                "Command seems malformed. Syntax: !globalwatch add namespaceID page"
+            )
         else:
             bot.say(globalWatcherAdd(trigger.group(2), trigger.account, trigger.sender))
     elif watchAction == "del" or watchAction == "Del" or watchAction == "-":
         if trigger.group(5) == "" or trigger.group(5) is None:
-            bot.say("Command seems malformed. Syntax: !globalwatch del namespaceID page")
+            bot.say(
+                "Command seems malformed. Syntax: !globalwatch del namespaceID page"
+            )
         else:
             bot.say(globalWatcherDel(trigger.group(2), trigger.account, trigger.sender))
     elif watchAction == "ping" or watchAction == "Ping":
         if trigger.group(6) == "" or trigger.group(6) is None:
-            bot.say("Command seems malformed. Syntax: !watch ping <on/off> namespaceID page")
+            bot.say(
+                "Command seems malformed. Syntax: !watch ping <on/off> namespaceID page"
+            )
         else:
-            bot.say(globalWatcherPing(trigger.group(2), trigger.account, trigger.sender))
+            bot.say(
+                globalWatcherPing(trigger.group(2), trigger.account, trigger.sender)
+            )
     else:
         bot.say("I don't recognize that command. Options are: add, del, & ping")
 
+
 @module.require_chanmsg(message="This message must be used in the channel")
-@module.commands('namespace')
+@module.commands("namespace")
 def namespaces(bot, trigger):
     listSpaces = {
-        '0':"Article",
-        '1':"Article talk",
-        '2':"User",
-        '3':"User talk",
-        '4':"Wikipedia",
-        '5':"Wikipedia talk",
-        '6':"File",
-        '7':"File talk",
-        '8':"MediaWiki",
-        '9':"MediaWiki talk",
-        '10':"Template",
-        '11':"Template talk",
-        '12':"Help",
-        '13':"Help talk",
-        '14':"Category",
-        '15':"Category talk",
-        '101':"Portal",
-        '102':"Portal talk",
-        '118':"Draft",
-        '119':"Draft talk",
-        '710':"TimedText",
-        '711':"TimedText talk",
-        '828':"Module",
-        '829':"Module talk",
-        '2300':"Gadget",
-        '2301':"Gadget talk"
+        "0": "Article",
+        "1": "Article talk",
+        "2": "User",
+        "3": "User talk",
+        "4": "Wikipedia",
+        "5": "Wikipedia talk",
+        "6": "File",
+        "7": "File talk",
+        "8": "MediaWiki",
+        "9": "MediaWiki talk",
+        "10": "Template",
+        "11": "Template talk",
+        "12": "Help",
+        "13": "Help talk",
+        "14": "Category",
+        "15": "Category talk",
+        "101": "Portal",
+        "102": "Portal talk",
+        "118": "Draft",
+        "119": "Draft talk",
+        "710": "TimedText",
+        "711": "TimedText talk",
+        "828": "Module",
+        "829": "Module talk",
+        "2300": "Gadget",
+        "2301": "Gadget talk",
     }
     search = trigger.group(2)
     response = ""
@@ -689,6 +1030,8 @@ def namespaces(bot, trigger):
                 response = listSpaces[item]
 
         if response == "":
-            bot.say("I can't find that name space. Global watch should still work, I just can't provide an example.")
+            bot.say(
+                "I can't find that name space. Global watch should still work, I just can't provide an example."
+            )
         else:
             bot.say(response)

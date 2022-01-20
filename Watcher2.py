@@ -30,7 +30,6 @@ def listener(bot, url, stop_event):
                         dispatch(bot, change)
                     except ValueError:
                         pass
-    bot.say("Listener stopped", "Operator873")
 
 
 def dispatch(bot, change):
@@ -42,6 +41,12 @@ def dispatch(bot, change):
 
         if sendLog["stalk"] is True:
             global_edit(bot, change)
+
+        if sendLog["rc_feed"] is True:
+            rc_change(bot, change)
+
+        if sendLog["af_feed"] is True:
+            af_report(bot, change)
 
         if re.search(r".*\.css$", change["title"]) or re.search(
             r".*\.js$", change["title"]
@@ -195,7 +200,12 @@ def cssjs(bot, change):
 
 
 def checkpage(change):
-    sendLog = {"watcher": False, "stalk": False}
+    sendLog = {
+        "watcher": False,
+        "stalk": False,
+        "rc_feed": False,
+        "af_feed": False
+    }
 
     proj = change["wiki"]
 
@@ -213,14 +223,26 @@ def checkpage(change):
     stalk_exists = c.execute(
         """SELECT title FROM global_watch WHERE title=?;""", (title,)
     ).fetchall()
+    RC_exists = c.execute(
+        """SELECT * FROM rc_feed WHERE project=?;""", (proj,)
+    ).fetchall()
+    AF_exists = c.execute(
+        """SELECT * FROM af_feed WHERE project=?""", (proj,)
+    ).fetchall()
 
     db.close()
 
-    if proj_exists is not None and len(proj_exists) > 0:
+    if len(proj_exists) > 0:
         sendLog["watcher"] = True
 
-    if stalk_exists is not None and len(stalk_exists) > 0:
+    if len(stalk_exists) > 0:
         sendLog["stalk"] = True
+
+    if len(RC_exists) > 0:
+        sendLog['rc_feed'] = True
+
+    if len(AF_exists) > 0:
+        sendLog['af_feed'] = True
 
     return sendLog
 
@@ -476,22 +498,6 @@ def check_hush(channel):
         return False
 
 
-def check_gswiki(project):
-    db = sqlite3.connect(DB)
-    c = db.cursor()
-
-    check = c.execute(
-        """SELECT * FROM GSwikis WHERE project="%s";""" % project
-    ).fetchall()
-
-    db.close()
-
-    if len(check) > 0:
-        return True
-    else:
-        return False
-
-
 def watcherAdd(msg, nick, chan):
     db = sqlite3.connect(DB)
     c = db.cursor()
@@ -639,6 +645,19 @@ def watcherPing(msg, nick, chan):
     db.close()
 
     return response
+
+
+def watcherList(nick, chan):
+    response = {
+        "result": False,
+        "data": []
+    }
+
+    db = sqlite3.connect(DB)
+    c = db.cursor()
+
+    pages = c.execute('''SELECT ''')
+
 
 
 def globalWatcherAdd(msg, nick, chan):

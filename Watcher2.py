@@ -45,9 +45,6 @@ def dispatch(bot, change):
         if sendLog["rc_feed"] is True:
             rc_change(bot, change)
 
-        if sendLog["af_feed"] is True:
-            af_report(bot, change)
-
         if re.search(r".*\.css$", change["title"]) or re.search(
             r".*\.js$", change["title"]
         ):
@@ -56,6 +53,8 @@ def dispatch(bot, change):
     if change["type"] == "log":
         if check_gswiki(change["wiki"]):
             log_send(bot, change)
+        if check_wiki(change["wiki"]):
+            af_report(bot, change)
 
 
 def log_send(bot, change):
@@ -157,12 +156,56 @@ def log_send(bot, change):
         return
 
 
+def af_report(bot, change):
+    project = change["server_name"]
+
+    db = sqlite3.connect(DB)
+    c = db.cursor()
+
+    channel = c.execute(
+        """SELECT channel FROM af_feed WHERE project="%s";""" % project
+    ).fetchall()
+
+    report = None
+
+    pageLink = change["meta"]["uri"]
+    space = u"\u200B"
+    editor = change["user"][:2] + space + change["user"][2:]
+    comment = str(change["log_action_comment"]).replace("\n", "")
+    logLink = change["server_url"] + "/wiki/Special:AbuseLog/" + change["log_params"]["log"]
+    filterNumber = change["log_params"]["filter"]
+
+    report = "Abuse Filter " + filterNumber + " was activated by " + editor + " at " + pageLink + " " + logLink
+
+    if report is not None:
+        for chan in channel:
+            if check_hush(chan) is True:
+                return
+            else:
+                bot.say(report, chan)
+
+
 def check_gswiki(project):
     db = sqlite3.connect(DB)
     c = db.cursor()
 
     check = c.execute(
         """SELECT * FROM GSwikis WHERE project="%s";""" % project
+    ).fetchall()
+
+    db.close()
+
+    if len(check) > 0:
+        return True
+    else:
+        return False
+
+def check_wiki(project):
+    db = sqlite3.connect(DB)
+    c = db.cursor()
+
+    check = c.execute(
+        """SELECT * FROM af_feed WHERE project="%s";""" % project
     ).fetchall()
 
     db.close()

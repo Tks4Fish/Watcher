@@ -33,22 +33,22 @@ def listener(bot, url, stop_event):
 
 
 def dispatch(bot, change):
+    checklog = checkpage(change)
 
     if change["type"] == "edit" or change["type"] == "new":
-        sendLog = checkpage(change)
-        if sendLog["watcher"] is True:
+        if checklog["watcher"] is True:
             edit_send(bot, change)
 
-        if sendLog["stalk"] is True:
+        if checklog["stalk"] is True:
             global_edit(bot, change)
-
-        if sendLog["rc_feed"] is True:
-            rc_change(bot, change)
 
         if re.search(r".*\.css$", change["title"]) or re.search(
             r".*\.js$", change["title"]
         ):
             cssjs(bot, change)
+
+    if checklog["rc_feed"] is True:
+        rc_change(bot, change)
 
     if change["type"] == "log":
         if check_gswiki(change["wiki"]):
@@ -162,19 +162,15 @@ def af_report(bot, change):
     db = sqlite3.connect(DB)
     c = db.cursor()
 
-    channel = None
-
     channel = c.execute(
-        """SELECT channel FROM af_feed WHERE project="%s";""" % project
+        """SELECT channel FROM af_feed WHERE project=?;""", (project,)
     ).fetchall()
 
-    if channel is not None and len(channel) > 0:
-        report = None
+    if len(channel) > 0:
 
         pageLink = change["meta"]["uri"]
         space = u"\u200B"
         editor = change["user"][:2] + space + change["user"][2:]
-        comment = str(change["log_action_comment"]).replace("\n", "")
         logLink = change["server_url"] + "/wiki/Special:AbuseLog/" + change["log_params"]["log"]
         filterNumber = change["log_params"]["filter"]
 

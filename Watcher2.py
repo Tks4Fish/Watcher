@@ -53,7 +53,7 @@ def dispatch(bot, change):
     if change["type"] == "log":
         if check_gswiki(change["wiki"]):
             log_send(bot, change)
-        if check_wiki(change["wiki"]):
+        if change["log_type"] == "abusefilter":
             af_report(bot, change)
 
 
@@ -157,32 +157,35 @@ def log_send(bot, change):
 
 
 def af_report(bot, change):
-    project = change["server_name"]
+    project = change["wiki"]
 
     db = sqlite3.connect(DB)
     c = db.cursor()
+
+    channel = None
 
     channel = c.execute(
         """SELECT channel FROM af_feed WHERE project="%s";""" % project
     ).fetchall()
 
-    report = None
+    if channel is not None and len(channel) > 0:
+        report = None
 
-    pageLink = change["meta"]["uri"]
-    space = u"\u200B"
-    editor = change["user"][:2] + space + change["user"][2:]
-    comment = str(change["log_action_comment"]).replace("\n", "")
-    logLink = change["server_url"] + "/wiki/Special:AbuseLog/" + change["log_params"]["log"]
-    filterNumber = change["log_params"]["filter"]
+        pageLink = change["meta"]["uri"]
+        space = u"\u200B"
+        editor = change["user"][:2] + space + change["user"][2:]
+        comment = str(change["log_action_comment"]).replace("\n", "")
+        logLink = change["server_url"] + "/wiki/Special:AbuseLog/" + change["log_params"]["log"]
+        filterNumber = change["log_params"]["filter"]
 
-    report = "Abuse Filter " + filterNumber + " was activated by " + editor + " at " + pageLink + " " + logLink
+        report = "Abuse Filter " + filterNumber + " was activated by " + editor + " at " + pageLink + " " + logLink
 
-    if report is not None:
-        for chan in channel:
-            if check_hush(chan) is True:
-                return
-            else:
-                bot.say(report, chan)
+        if report is not None:
+            for chan in channel:
+                if check_hush(chan) is True:
+                    return
+                else:
+                    bot.say(report, chan)
 
 
 def check_gswiki(project):
@@ -191,21 +194,6 @@ def check_gswiki(project):
 
     check = c.execute(
         """SELECT * FROM GSwikis WHERE project="%s";""" % project
-    ).fetchall()
-
-    db.close()
-
-    if len(check) > 0:
-        return True
-    else:
-        return False
-
-def check_wiki(project):
-    db = sqlite3.connect(DB)
-    c = db.cursor()
-
-    check = c.execute(
-        """SELECT * FROM af_feed WHERE project="%s";""" % project
     ).fetchall()
 
     db.close()

@@ -834,16 +834,24 @@ def watcherSpeak(bot, trigger):
     c = db.cursor()
 
     doesExist = c.execute(
-        """SELECT * FROM hushchannels WHERE channel="%s";""" % trigger.sender
+        """SELECT * FROM hushchannels WHERE channel=?;""", (trigger.sender,)
     ).fetchall()
 
     if len(doesExist) > 0:
         try:
-            c.execute(
-                """DELETE FROM hushchannels WHERE channel="%s";""" % trigger.sender
-            )
-            db.commit()
-            bot.say("Alright! Back to business.")
+            if (
+                trigger.nick in
+                c.execute(
+                    """SELECT nick from feed_admins where channel=?;""", (trigger.sender,)
+                ).fetchall()
+            ):
+                c.execute(
+                    """DELETE FROM hushchannels WHERE channel=?;""", (trigger.sender)
+                )
+                db.commit()
+                bot.say("Alright! Back to business.")
+            else:
+                bot.say("You're not authorized to execute this command.")
         except:
             bot.say("Ugh... something blew up. Help me Operator873")
         finally:
@@ -900,23 +908,30 @@ def watcherHush(bot, trigger):
                 except:
                     bot.say("Ugh... something blew up. Help me Operator873")
 
-        else:
+        elif (
+            trigger.nick in
+            c.execute(
+                """SELECT nick from feed_admins where channel=?;""", (trigger.sender,)
+            ).fetchall()
+        ):
             try:
                 c.execute(
-                    """INSERT INTO hushchannels VALUES("%s", "%s", "%s");"""
-                    % (trigger.sender, trigger.nick, timestamp)
+                    """INSERT INTO hushchannels VALUES(?, ?, ?);""",
+                    (trigger.sender, trigger.nick, timestamp)
                 )
                 db.commit()
-            except:
-                bot.say("Ugh... something blew up. Help me Operator873")
-            finally:
                 check = c.execute(
-                    """SELECT * FROM hushchannels WHERE channel="%s";"""
-                    % trigger.sender
+                    """SELECT * FROM hushchannels WHERE channel=?;""",
+                    (trigger.sender,)
                 ).fetchall()[0]
                 chan, nick, time = check
                 bot.say(nick + " hushed! " + time)
                 db.close()
+            except:
+                bot.say("Ugh... something blew up. Help me Operator873")
+
+        else:
+            bot.say("You're not authorized to execute this command.")
 
 
 @module.require_admin(

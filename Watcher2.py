@@ -67,7 +67,7 @@ def log_send(bot, change):
 
     try:
         gs_list = c.execute(
-            """SELECT account FROM globalsysops WHERE account="%s";""" % gs
+            """SELECT account FROM globalsysops WHERE account=?;""", (gs,)
         ).fetchall()
     except:
         pass
@@ -189,7 +189,7 @@ def check_gswiki(project):
     c = db.cursor()
 
     check = c.execute(
-        """SELECT * FROM GSwikis WHERE project="%s";""" % project
+        """SELECT * FROM GSwikis WHERE project=?;""", (project,)
     ).fetchall()
 
     db.close()
@@ -300,7 +300,7 @@ def global_edit(bot, change):
 
     try:
         check = c.execute(
-            """SELECT * FROM global_watch where title="%s";""" % (title)
+            """SELECT * FROM global_watch where title=?;""", (title,)
         ).fetchall()
     except:
         return
@@ -323,8 +323,8 @@ def global_edit(bot, change):
         for chan in channels:
             nicks = ""
             pgNicks = c.execute(
-                'SELECT nick from global_watch where title="%s" and namespace="%s" and channel="%s" and notify="on";'
-                % (title, chNamespace, chan)
+                """SELECT nick from global_watch where title=? and namespace=? and channel=? and notify='on';""",
+                (title, chNamespace, chan)
             ).fetchall()
 
             if len(pgNicks) > 0:
@@ -417,7 +417,7 @@ def edit_send(bot, change):
 
     try:
         check = c.execute(
-            """SELECT * FROM %s where page="%s";""" % (proj, title)
+            """SELECT * FROM ? where page=?;""", (proj, title,)
         ).fetchall()
     except:
         return
@@ -433,8 +433,8 @@ def edit_send(bot, change):
         for chan in channels:
             nicks = ""
             pgNicks = c.execute(
-                'SELECT nick from %s where page="%s" and channel="%s" and notify="on";'
-                % (proj, title, chan)
+                """SELECT nick from ? where page=? and channel=? and notify='on';""",
+                (proj, title, chan,)
             ).fetchall()
 
             if len(pgNicks) > 0:
@@ -514,7 +514,7 @@ def check_hush(channel):
     c = db.cursor()
 
     hushCheck = c.execute(
-        """SELECT * FROM hushchannels WHERE channel="%s";""" % channel
+        """SELECT * FROM hushchannels WHERE channel=?;""", (channel,)
     ).fetchall()
 
     db.close()
@@ -532,14 +532,13 @@ def watcherAdd(msg, nick, chan):
     action, project, page = msg.split(" ", 2)
 
     checkTable = c.execute(
-        """SELECT count(*) FROM sqlite_master WHERE type="table" AND name="%s";"""
-        % project
+        """SELECT count(*) FROM sqlite_master WHERE type='table' AND name=?;""", (project,)
     ).fetchone()
     if checkTable[0] == 0:
         try:
             c.execute(
-                """CREATE TABLE %s (page TEXT, nick TEXT, channel TEXT, notify TEXT);"""
-                % project
+                """CREATE TABLE ? (page TEXT, nick TEXT, channel TEXT, notify TEXT);""",
+                (project,)
             )
             db.commit()
         except Exception as e:
@@ -552,8 +551,7 @@ def watcherAdd(msg, nick, chan):
 
         # Check to see if we have the table
         check = c.execute(
-            """SELECT count(*) FROM sqlite_master WHERE type="table" AND name="%s";"""
-            % project
+            """SELECT count(*) FROM sqlite_master WHERE type='table' AND name=?;""", (project,)
         ).fetchone()
         if check[0] == 0:
             response = (
@@ -565,14 +563,14 @@ def watcherAdd(msg, nick, chan):
             return response
 
     pageExists = c.execute(
-        """SELECT * from %s WHERE page="%s" AND nick="%s" AND channel="%s";"""
-        % (project, page, nick, chan)
+        """SELECT * from ? WHERE page=? AND nick=? AND channel=?;""",
+        (project, page, nick, chan,)
     ).fetchone()
     if pageExists is None:
         try:
             c.execute(
-                """INSERT INTO %s VALUES("%s", "%s", "%s", "off");"""
-                % (project, page, nick, chan)
+                """INSERT INTO ? VALUES(?, ?, ?, 'off');""",
+                (project, page, nick, chan,)
             )
             db.commit()
         except Exception as e:
@@ -584,8 +582,8 @@ def watcherAdd(msg, nick, chan):
             db.close()
             return response
         check = c.execute(
-            """SELECT * FROM %s WHERE page="%s" AND nick="%s" AND channel="%s";"""
-            % (project, page, nick, chan)
+            """SELECT * FROM ? WHERE page=? AND nick=? AND channel=?;""",
+            (project, page, nick, chan,)
         ).fetchone()
         rePage, reNick, reChan, reNotify = check
         response = (
@@ -617,14 +615,14 @@ def watcherDel(msg, nick, chan):
     action, project, page = msg.split(" ", 2)
 
     checkPage = c.execute(
-        """SELECT * FROM %s WHERE page="%s" AND nick="%s" AND channel="%s";"""
-        % (project, page, nick, chan)
+        """SELECT * FROM ? WHERE page=? AND nick=? AND channel=?;""",
+        (project, page, nick, chan,)
     ).fetchone()
     if checkPage is not None:
         try:
             c.execute(
-                """DELETE FROM %s WHERE page="%s" AND nick="%s" AND channel="%s";"""
-                % (project, page, nick, chan)
+                """DELETE FROM ? WHERE page=? AND nick=? AND channel=?;""",
+                (project, page, nick, chan,)
             )
             db.commit()
             response = (
@@ -651,8 +649,8 @@ def watcherPing(msg, nick, chan):
 
     if switch.lower() == "on" or switch.lower() == "off":
         c.execute(
-            """UPDATE %s set notify="%s" where page="%s" and nick="%s" and channel="%s";"""
-            % (project, switch, page, nick, chan)
+            """UPDATE ? set notify=? where page=? and nick=? and channel=?;""",
+            (project, switch, page, nick, chan)
         )
         db.commit()
         response = (
@@ -735,7 +733,7 @@ def globalWatcherAdd(msg, nick, chan):
             + ": you are already globally watching "
             + nspace
             + ":"
-            + page
+            + title
             + " in this channel."
         )
 
@@ -873,7 +871,7 @@ def watcherHush(bot, trigger):
     timestamp = time.ctime(now)
 
     doesExist = c.execute(
-        """SELECT * FROM hushchannels WHERE channel="%s";""" % trigger.sender
+        """SELECT * FROM hushchannels WHERE channel=?;""", (trigger.sender,)
     ).fetchall()
 
     if len(doesExist) > 0:
@@ -889,18 +887,18 @@ def watcherHush(bot, trigger):
             or trigger.sender == "##OperTestBed"
         ):
             isGS = c.execute(
-                """SELECT account from globalsysops where nick="%s";""" % trigger.nick
+                """SELECT account from globalsysops where nick=?;""", (trigger.nick,)
             ).fetchall()
             if len(isGS) > 0:
                 try:
                     c.execute(
-                        """INSERT INTO hushchannels VALUES("%s", "%s", "%s");"""
-                        % (trigger.sender, trigger.nick, timestamp)
+                        """INSERT INTO hushchannels VALUES(?, ?, ?);""",
+                        (trigger.sender, trigger.nick, timestamp,)
                     )
                     db.commit()
                     check = c.execute(
-                        """SELECT * FROM hushchannels WHERE channel="%s";"""
-                        % trigger.sender
+                        """SELECT * FROM hushchannels WHERE channel=?;""",
+                        (trigger.sender,)
                     ).fetchall()[0]
                     chan, nick, time = check
                     bot.say(nick + " hushed! " + time)
@@ -1012,12 +1010,12 @@ def addGS(bot, trigger):
     db = sqlite3.connect(DB)
     c = db.cursor()
     c.execute(
-        """INSERT INTO globalsysops VALUES("%s", "%s");"""
-        % (trigger.group(3), trigger.group(4))
+        """INSERT INTO globalsysops VALUES(?, ?);""",
+        (trigger.group(3), trigger.group(4),)
     )
     db.commit()
     nickCheck = c.execute(
-        """SELECT nick FROM globalsysops where account="%s";""" % trigger.group(4)
+        """SELECT nick FROM globalsysops where account=?;""", (trigger.group(4),)
     ).fetchall()
     nicks = ""
     for nick in nickCheck:
@@ -1041,12 +1039,12 @@ def addGS(bot, trigger):
 def delGS(bot, trigger):
     db = sqlite3.connect(DB)
     c = db.cursor()
-    c.execute("""DELETE FROM globalsysops WHERE account="%s";""" % trigger.group(3))
+    c.execute("""DELETE FROM globalsysops WHERE account=?;""", (trigger.group(3)),)
     db.commit()
     checkWork = None
     try:
         checkWork = c.execute(
-            """SELECT nick FROM globalsysops WHERE account="%s";""" % trigger.group(3)
+            """SELECT nick FROM globalsysops WHERE account=?;""", (trigger.group(3),)
         ).fetchall()
         bot.say("All nicks for " + trigger.group(3) + " have been purged.")
     except:

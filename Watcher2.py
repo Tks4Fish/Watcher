@@ -3,7 +3,7 @@ import threading
 import sqlite3
 import random
 import re
-from sopel import module
+from sopel import plugin
 from sseclient import SSEClient as EventSource
 
 
@@ -828,7 +828,7 @@ def globalWatcherPing(msg, nick, chan):
     return response
 
 
-@module.commands("speak")
+@plugin.command("speak")
 def watcherSpeak(bot, trigger):
     db = sqlite3.connect(DB)
     c = db.cursor()
@@ -860,8 +860,8 @@ def watcherSpeak(bot, trigger):
         bot.say(trigger.nick + ": I'm already in 'speak' mode.")
 
 
-@module.commands("hush")
-@module.commands("mute")
+@plugin.command("hush")
+@plugin.command("mute")
 def watcherHush(bot, trigger):
 
     db = sqlite3.connect(DB)
@@ -934,10 +934,10 @@ def watcherHush(bot, trigger):
             bot.say("You're not authorized to execute this command.")
 
 
-@module.require_admin(
+@plugin.require_admin(
     message="This function is only available to Operator873 and bot admins."
 )
-@module.commands("watchstart")
+@plugin.command("watchstart")
 def start_listener(bot, trigger):
     if "wikistream_listener" not in bot.memory:
         stop_event = threading.Event()
@@ -951,7 +951,7 @@ def start_listener(bot, trigger):
     bot.say("Listening to EventStream...")
 
 
-@module.interval(120)
+@plugin.interval(120)
 def checkListener(bot):
     if bot.memory["wikistream_listener"].is_alive() is not True:
         del bot.memory["wikistream_listener"]
@@ -972,10 +972,10 @@ def checkListener(bot):
         pass
 
 
-@module.require_admin(
+@plugin.require_admin(
     message="This function is only available to Operator873 and bot admins."
 )
-@module.commands("watchstatus")
+@plugin.command("watchstatus")
 def watchStatus(bot, trigger):
     if (
         "wikistream_listener" in bot.memory
@@ -988,10 +988,10 @@ def watchStatus(bot, trigger):
     bot.say(msg)
 
 
-@module.require_admin(
+@plugin.require_admin(
     message="This function is only available to Operator873 and bot admins."
 )
-@module.commands("watchstop")
+@plugin.command("watchstop")
 def watchStop(bot, trigger):
     if "wikistream_listener" not in bot.memory:
         bot.say("Listener isn't running.")
@@ -1004,10 +1004,10 @@ def watchStop(bot, trigger):
             bot.say(str(e))
 
 
-@module.require_admin(
+@plugin.require_admin(
     message="This function is only available to Operator873 and bot admins."
 )
-@module.commands("addmember")
+@plugin.command("addmember")
 def addGS(bot, trigger):
     db = sqlite3.connect(DB)
     c = db.cursor()
@@ -1034,10 +1034,10 @@ def addGS(bot, trigger):
     )
 
 
-@module.require_admin(
+@plugin.require_admin(
     message="This function is only available to Operator873 and bot admins."
 )
-@module.commands("removemember")
+@plugin.command("removemember")
 def delGS(bot, trigger):
     db = sqlite3.connect(DB)
     c = db.cursor()
@@ -1053,8 +1053,8 @@ def delGS(bot, trigger):
         bot.say("Ugh... Something blew up. Help me Operator873.")
 
 
-@module.require_chanmsg(message="This message must be used in the channel")
-@module.commands("watch")
+@plugin.require_chanmsg(message="This message must be used in the channel")
+@plugin.command("watch")
 def watch(bot, trigger):
     watchAction = trigger.group(3)
     if watchAction == "add" or watchAction == "Add" or watchAction == "+":
@@ -1078,8 +1078,8 @@ def watch(bot, trigger):
 
 # !globalwatch ping on namespaceid title
 # !globalwatch add namespaceid title
-@module.require_chanmsg(message="This message must be used in the channel")
-@module.commands("globalwatch")
+@plugin.require_chanmsg(message="This message must be used in the channel")
+@plugin.command("globalwatch")
 def gwatch(bot, trigger):
     watchAction = trigger.group(3)
     if watchAction == "add" or watchAction == "Add" or watchAction == "+":
@@ -1109,8 +1109,8 @@ def gwatch(bot, trigger):
         bot.say("I don't recognize that command. Options are: add, del, & ping")
 
 
-@module.require_chanmsg(message="This message must be used in the channel")
-@module.commands("namespace")
+@plugin.require_chanmsg(message="This message must be used in the channel")
+@plugin.command("namespace")
 def namespaces(bot, trigger):
     listSpaces = {
         "0": "Article",

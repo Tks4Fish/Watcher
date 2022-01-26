@@ -67,7 +67,7 @@ def log_send(bot, change):
 
     try:
         gs_list = c.execute(
-            """SELECT account FROM globalsysops WHERE account="%s";""" % gs
+            """SELECT account FROM globalsysops WHERE account=?;""", (gs,)
         ).fetchall()
     except:
         pass
@@ -189,7 +189,7 @@ def check_gswiki(project):
     c = db.cursor()
 
     check = c.execute(
-        """SELECT * FROM GSwikis WHERE project="%s";""" % project
+        """SELECT * FROM GSwikis WHERE project=?;""", (project,)
     ).fetchall()
 
     db.close()
@@ -300,7 +300,7 @@ def global_edit(bot, change):
 
     try:
         check = c.execute(
-            """SELECT * FROM global_watch where title="%s";""" % (title)
+            """SELECT * FROM global_watch where title=?;""", (title,)
         ).fetchall()
     except:
         return
@@ -323,8 +323,8 @@ def global_edit(bot, change):
         for chan in channels:
             nicks = ""
             pgNicks = c.execute(
-                'SELECT nick from global_watch where title="%s" and namespace="%s" and channel="%s" and notify="on";'
-                % (title, chNamespace, chan)
+                '''SELECT nick from global_watch where title=? and namespace=? and channel=? and notify="on";''',
+                (title, chNamespace, chan)
             ).fetchall()
 
             if len(pgNicks) > 0:
@@ -412,13 +412,17 @@ def edit_send(bot, change):
     editor = editor[:2] + space + editor[2:]
     check = None
 
+    # Band aid SQL injection prevention. Not a pretty fix
+    # This will always only be a wiki name ie enwiki, ptwiki, etc
+    # The only source is the EventStream so can be considered "safe"
+    checkquery = """SELECT * FROM %s where page=?;""" % proj
+    nickquery = """SELECT nick from %s where page=? and channel=? and notify="on";""" % proj
+
     db = sqlite3.connect(DB)
     c = db.cursor()
 
     try:
-        check = c.execute(
-            """SELECT * FROM %s where page="%s";""" % (proj, title)
-        ).fetchall()
+        check = c.execute(checkquery, (title,)).fetchall()
     except:
         return
 
@@ -432,10 +436,7 @@ def edit_send(bot, change):
 
         for chan in channels:
             nicks = ""
-            pgNicks = c.execute(
-                'SELECT nick from %s where page="%s" and channel="%s" and notify="on";'
-                % (proj, title, chan)
-            ).fetchall()
+            pgNicks = c.execute(nickquery, (title, chan)).fetchall()
 
             if len(pgNicks) > 0:
                 for nick in pgNicks:
@@ -514,7 +515,7 @@ def check_hush(channel):
     c = db.cursor()
 
     hushCheck = c.execute(
-        """SELECT * FROM hushchannels WHERE channel="%s";""" % channel
+        """SELECT * FROM hushchannels WHERE channel=?;""", (channel,)
     ).fetchall()
 
     db.close()
@@ -526,15 +527,13 @@ def check_hush(channel):
 
 
 def watcherAdd(msg, nick, chan):
+    checkquery = """SELECT count(*) FROM sqlite_master WHERE type="table" AND name=?;"""
     db = sqlite3.connect(DB)
     c = db.cursor()
 
     action, project, page = msg.split(" ", 2)
 
-    checkTable = c.execute(
-        """SELECT count(*) FROM sqlite_master WHERE type="table" AND name="%s";"""
-        % project
-    ).fetchone()
+    checkTable = c.execute(checkquery, (project,)).fetchone()
     if checkTable[0] == 0:
         try:
             c.execute(
@@ -551,10 +550,7 @@ def watcherAdd(msg, nick, chan):
             return response
 
         # Check to see if we have the table
-        check = c.execute(
-            """SELECT count(*) FROM sqlite_master WHERE type="table" AND name="%s";"""
-            % project
-        ).fetchone()
+        check = c.execute(checkquery, (project,)).fetchone()
         if check[0] == 0:
             response = (
                 "Ugh... Something blew up finding the new table: ("
@@ -874,7 +870,7 @@ def watcherHush(bot, trigger):
     timestamp = time.ctime(now)
 
     doesExist = c.execute(
-        """SELECT * FROM hushchannels WHERE channel="%s";""" % trigger.sender
+        """SELECT * FROM hushchannels WHERE channel=?;""", (trigger.sender,)
     ).fetchall()
 
     if len(doesExist) > 0:
@@ -889,7 +885,7 @@ def watcherHush(bot, trigger):
             or trigger.sender == "#wikimedia-gs"
         ):
             isGS = c.execute(
-                """SELECT account from globalsysops where nick="%s";""" % trigger.nick
+                """SELECT account from globalsysops where nick=?;""", (trigger.nick,)
             ).fetchall()
             if len(isGS) > 0:
                 try:
@@ -899,8 +895,7 @@ def watcherHush(bot, trigger):
                     )
                     db.commit()
                     check = c.execute(
-                        """SELECT * FROM hushchannels WHERE channel="%s";"""
-                        % trigger.sender
+                        """SELECT * FROM hushchannels WHERE channel=?;""", (trigger.sender,)
                     ).fetchall()[0]
                     chan, nick, time = check
                     bot.say(nick + " hushed! " + time)
@@ -1011,12 +1006,11 @@ def addGS(bot, trigger):
     db = sqlite3.connect(DB)
     c = db.cursor()
     c.execute(
-        """INSERT INTO globalsysops VALUES("%s", "%s");"""
-        % (trigger.group(3), trigger.group(4))
+        """INSERT INTO globalsysops VALUES(?, ?);""", (trigger.group(3), trigger.group(4))
     )
     db.commit()
     nickCheck = c.execute(
-        """SELECT nick FROM globalsysops where account="%s";""" % trigger.group(4)
+        """SELECT nick FROM globalsysops where account=?;""", (trigger.group(4),)
     ).fetchall()
     nicks = ""
     for nick in nickCheck:
@@ -1040,12 +1034,12 @@ def addGS(bot, trigger):
 def delGS(bot, trigger):
     db = sqlite3.connect(DB)
     c = db.cursor()
-    c.execute("""DELETE FROM globalsysops WHERE account="%s";""" % trigger.group(3))
+    c.execute("""DELETE FROM globalsysops WHERE account=?;""", (trigger.group(3),))
     db.commit()
     checkWork = None
     try:
         checkWork = c.execute(
-            """SELECT nick FROM globalsysops WHERE account="%s";""" % trigger.group(3)
+            """SELECT nick FROM globalsysops WHERE account=?;""", (trigger.group(3),)
         ).fetchall()
         bot.say("All nicks for " + trigger.group(3) + " have been purged.")
     except:

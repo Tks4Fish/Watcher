@@ -2,12 +2,15 @@ import json
 import threading
 import sqlite3
 import random
+import time
 import re
 from sopel import plugin
 from sseclient import SSEClient as EventSource
 
 
 DB = "wiki.db"
+BOTADMINMSG = "This command is only available to the bot admins."
+CHANCMDMSG = "This message must be used in a channel."
 
 
 def setup(bot):
@@ -824,6 +827,65 @@ def globalWatcherPing(msg, nick, chan):
     return response
 
 
+@plugin.require_admin(message=BOTADMINMSG)
+@plugin.require_chanmsg(message=CHANCMDMSG)
+@plugin.command("feedadmin")
+def feedadmin(bot, trigger):
+    # !feedadmin {add/del/list} <target>
+    checkquery = """SELECT nick FROM feed_admins WHERE nick=? AND channel=?;"""
+    insertnew = """INSERT INTO feed_admins VALUES(?, ?);"""
+    deladmin = """DELETE FROM feed_admins WHERE nick=? AND channel=?;"""
+    badcommand = "Invalid command. !feedadmin {add/del/list} <targetAccount>"
+
+    db = sqlite3.connect(DB)
+    c = db.cursor()
+
+    try:
+        action, target = trigger.group(2).split(' ', 1)
+    except ValueError:
+        db.close()
+        bot.say(badcommand)
+        return
+
+    if action.lower() == "add":
+        check = c.execute(checkquery, (target, trigger.sender)).fetchall()
+
+        if len(check) == 0:
+            c.execute(insertnew, (target, trigger.sender))
+            db.commit()
+
+            checkagain = c.execute(checkquery, (target, trigger.sender)).fetchall()
+
+            if len(checkagain) > 0:
+                bot.say(target + " added as a feed admin in " + trigger.sender)
+            else:
+                bot.say("Error inserting new feed admin. Notifying " + bot.settings.core.owner)
+        else:
+            db.close()
+            bot.say(target + " is already a feed_admin in this channel.")
+            return
+
+    if action.lower() == "del":
+        check = c.execute(checkquery, (target, trigger.sender)).fetchall()
+
+        if len(check) >= 1:
+            c.execute(deladmin, (target, trigger.sender))
+            db.commit()
+
+            checkagain = c.execute(checkquery, (target, trigger.sender)).fetchall()
+
+            if len(checkagain) == 0:
+                bot.say(target + " removed from feed admins in " + trigger.sender)
+            else:
+                bot.say("Error removing feed admin. Notifying " + bot.settings.core.owner)
+        else:
+            bot.say(target + " doesn't appear to be a feed admin in this channel.")
+
+    else:
+        bot.say(badcommand)
+
+    db.close()
+
 @plugin.command("speak")
 def watcherSpeak(bot, trigger):
     db = sqlite3.connect(DB)
@@ -863,9 +925,6 @@ def watcherHush(bot, trigger):
 
     db = sqlite3.connect(DB)
     c = db.cursor()
-
-    import time
-
     now = time.time()
     timestamp = time.ctime(now)
 
@@ -929,9 +988,7 @@ def watcherHush(bot, trigger):
             bot.say("You're not authorized to execute this command.")
 
 
-@plugin.require_admin(
-    message="This function is only available to the bot admins."
-)
+@plugin.require_admin(message=BOTADMINMSG)
 @plugin.command("watchstart")
 def start_listener(bot, trigger):
     if "wikistream_listener" not in bot.memory:
@@ -966,9 +1023,7 @@ def checkListener(bot):
         pass
 
 
-@plugin.require_admin(
-    message="This function is only available to the bot admins."
-)
+@plugin.require_admin(message=BOTADMINMSG)
 @plugin.command("watchstatus")
 def watchStatus(bot, trigger):
     if (
@@ -982,9 +1037,7 @@ def watchStatus(bot, trigger):
     bot.say(msg)
 
 
-@plugin.require_admin(
-    message="This function is only available to the bot admins."
-)
+@plugin.require_admin(message=BOTADMINMSG)
 @plugin.command("watchstop")
 def watchStop(bot, trigger):
     if "wikistream_listener" not in bot.memory:
@@ -998,9 +1051,7 @@ def watchStop(bot, trigger):
             bot.say(str(e))
 
 
-@plugin.require_admin(
-    message="This function is only available to the bot admins."
-)
+@plugin.require_admin(message=BOTADMINMSG)
 @plugin.command("addmember")
 def addGS(bot, trigger):
     db = sqlite3.connect(DB)
@@ -1027,9 +1078,7 @@ def addGS(bot, trigger):
     )
 
 
-@plugin.require_admin(
-    message="This function is only available to the bot admins."
-)
+@plugin.require_admin(message=BOTADMINMSG)
 @plugin.command("removemember")
 def delGS(bot, trigger):
     db = sqlite3.connect(DB)
@@ -1046,7 +1095,7 @@ def delGS(bot, trigger):
         bot.say("Ugh... Something blew up. Help me " + bot.settings.core.owner)
 
 
-@plugin.require_chanmsg(message="This message must be used in the channel")
+@plugin.require_chanmsg(message=CHANCMDMSG)
 @plugin.command("watch")
 def watch(bot, trigger):
     watchAction = trigger.group(3)
@@ -1071,7 +1120,7 @@ def watch(bot, trigger):
 
 # !globalwatch ping on namespaceid title
 # !globalwatch add namespaceid title
-@plugin.require_chanmsg(message="This message must be used in the channel")
+@plugin.require_chanmsg(message=CHANCMDMSG)
 @plugin.command("globalwatch")
 def gwatch(bot, trigger):
     watchAction = trigger.group(3)
@@ -1102,7 +1151,7 @@ def gwatch(bot, trigger):
         bot.say("I don't recognize that command. Options are: add, del, & ping")
 
 
-@plugin.require_chanmsg(message="This message must be used in the channel")
+@plugin.require_chanmsg(message=CHANCMDMSG)
 @plugin.command("namespace")
 def namespaces(bot, trigger):
     listSpaces = {

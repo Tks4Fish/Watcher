@@ -865,7 +865,7 @@ def feedadmin(bot, trigger):
             bot.say(target + " is already a feed_admin in this channel.")
             return
 
-    if action.lower() == "del":
+    elif action.lower() == "del":
         check = c.execute(checkquery, (target, trigger.sender)).fetchall()
 
         if len(check) >= 1:
@@ -880,6 +880,16 @@ def feedadmin(bot, trigger):
                 bot.say("Error removing feed admin. Notifying " + bot.settings.core.owner)
         else:
             bot.say(target + " doesn't appear to be a feed admin in this channel.")
+
+    elif action.lower() == "list":
+        check = c.execute (
+            """SELECT nick FROM feed_admins WHERE channel=?;""", (trigger.sender,)
+        ).fetchall()
+
+        for nick in check:
+            admins = admins + nick[0] + " "
+
+        bot.say("The following accounts have feed admin in this channel: " + admins)
 
     else:
         bot.say(badcommand)

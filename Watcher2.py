@@ -840,7 +840,7 @@ def watcherSpeak(bot, trigger):
     if len(doesExist) > 0:
         try:
             if (
-                trigger.nick in
+                trigger.account in
                 c.execute(
                     """SELECT nick from feed_admins where channel=?;""", (trigger.sender,)
                 ).fetchall()
@@ -857,6 +857,7 @@ def watcherSpeak(bot, trigger):
         finally:
             db.close()
     else:
+        db.close()
         bot.say(trigger.nick + ": I'm already in 'speak' mode.")
 
 
@@ -886,7 +887,6 @@ def watcherHush(bot, trigger):
         if (
             trigger.sender == "#wikimedia-gs-internal"
             or trigger.sender == "#wikimedia-gs"
-            or trigger.sender == "##OperTestBed"
         ):
             isGS = c.execute(
                 """SELECT account from globalsysops where nick="%s";""" % trigger.nick
@@ -895,7 +895,7 @@ def watcherHush(bot, trigger):
                 try:
                     c.execute(
                         """INSERT INTO hushchannels VALUES("%s", "%s", "%s");"""
-                        % (trigger.sender, trigger.nick, timestamp)
+                        % (trigger.sender, trigger.account, timestamp)
                     )
                     db.commit()
                     check = c.execute(
@@ -909,7 +909,7 @@ def watcherHush(bot, trigger):
                     bot.say("Ugh... something blew up. Help me " + bot.settings.core.owner)
 
         elif (
-            trigger.nick in
+            trigger.account in
             c.execute(
                 """SELECT nick from feed_admins where channel=?;""", (trigger.sender,)
             ).fetchall()
@@ -917,7 +917,7 @@ def watcherHush(bot, trigger):
             try:
                 c.execute(
                     """INSERT INTO hushchannels VALUES(?, ?, ?);""",
-                    (trigger.sender, trigger.nick, timestamp)
+                    (trigger.sender, trigger.account, timestamp)
                 )
                 db.commit()
                 check = c.execute(

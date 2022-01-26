@@ -544,7 +544,7 @@ def watcherAdd(msg, nick, chan):
             db.commit()
         except Exception as e:
             response = (
-                "Ugh... Something blew up creating the table. Operator873 help me. "
+                "Ugh... Something blew up creating the table. " + bot.settings.core.owner + " help me. "
                 + str(e)
             )
             db.close()
@@ -559,7 +559,7 @@ def watcherAdd(msg, nick, chan):
             response = (
                 "Ugh... Something blew up finding the new table: ("
                 + check
-                + ") Operator873 help me."
+                + ") " + bot.settings.core.owner + " help me."
             )
             db.close()
             return response
@@ -579,7 +579,7 @@ def watcherAdd(msg, nick, chan):
             response = (
                 "Ugh... Something blew up adding the page to the table: "
                 + str(e)
-                + ". Operator873 help me."
+                + ". " + bot.settings.core.owner + " help me."
             )
             db.close()
             return response
@@ -632,7 +632,7 @@ def watcherDel(msg, nick, chan):
                 % (nick, page, project)
             )
         except:
-            response = "Ugh... Something blew up. Operator873 help me."
+            response = "Ugh... Something blew up. " + bot.settings.core.owner + " help me."
     else:
         response = (
             "%s: it doesn't look like I'm reporting changes to %s on %s in this channel for you."
@@ -710,7 +710,7 @@ def globalWatcherAdd(msg, nick, chan):
             response = (
                 "Ugh... Something blew up adding the page to the table: "
                 + str(e)
-                + ". Operator873 help me."
+                + ". " + bot.settings.core.owner + " help me."
             )
             db.close()
             return response
@@ -782,7 +782,7 @@ def globalWatcherDel(msg, nick, chan):
                 + "."
             )
         else:
-            response = "Confirmation failed. Pinging Operator873"
+            response = "Confirmation failed. Pinging " + bot.settings.core.owner
     else:
         response = (
             nick
@@ -846,14 +846,14 @@ def watcherSpeak(bot, trigger):
                 ).fetchall()
             ):
                 c.execute(
-                    """DELETE FROM hushchannels WHERE channel=?;""", (trigger.sender)
+                    """DELETE FROM hushchannels WHERE channel=?;""", (trigger.sender,)
                 )
                 db.commit()
                 bot.say("Alright! Back to business.")
             else:
                 bot.say("You're not authorized to execute this command.")
         except:
-            bot.say("Ugh... something blew up. Help me Operator873")
+            bot.say("Ugh... something blew up. Help me " + bot.settings.core.owner)
         finally:
             db.close()
     else:
@@ -906,7 +906,7 @@ def watcherHush(bot, trigger):
                     bot.say(nick + " hushed! " + time)
                     db.close()
                 except:
-                    bot.say("Ugh... something blew up. Help me Operator873")
+                    bot.say("Ugh... something blew up. Help me " + bot.settings.core.owner)
 
         elif (
             trigger.nick in
@@ -928,14 +928,14 @@ def watcherHush(bot, trigger):
                 bot.say(nick + " hushed! " + time)
                 db.close()
             except:
-                bot.say("Ugh... something blew up. Help me Operator873")
+                bot.say("Ugh... something blew up. Help me " + bot.settings.core.owner)
 
         else:
             bot.say("You're not authorized to execute this command.")
 
 
 @plugin.require_admin(
-    message="This function is only available to Operator873 and bot admins."
+    message="This function is only available to the bot admins."
 )
 @plugin.command("watchstart")
 def start_listener(bot, trigger):
@@ -967,13 +967,12 @@ def checkListener(bot):
 
         bot.memory["wikistream_listener"] = listen
         bot.memory["wikistream_listener"].start()
-        # bot.say("Restarted listener", "Operator873")
     else:
         pass
 
 
 @plugin.require_admin(
-    message="This function is only available to Operator873 and bot admins."
+    message="This function is only available to the bot admins."
 )
 @plugin.command("watchstatus")
 def watchStatus(bot, trigger):
@@ -989,7 +988,7 @@ def watchStatus(bot, trigger):
 
 
 @plugin.require_admin(
-    message="This function is only available to Operator873 and bot admins."
+    message="This function is only available to the bot admins."
 )
 @plugin.command("watchstop")
 def watchStop(bot, trigger):
@@ -1005,7 +1004,7 @@ def watchStop(bot, trigger):
 
 
 @plugin.require_admin(
-    message="This function is only available to Operator873 and bot admins."
+    message="This function is only available to the bot admins."
 )
 @plugin.command("addmember")
 def addGS(bot, trigger):
@@ -1035,7 +1034,7 @@ def addGS(bot, trigger):
 
 
 @plugin.require_admin(
-    message="This function is only available to Operator873 and bot admins."
+    message="This function is only available to the bot admins."
 )
 @plugin.command("removemember")
 def delGS(bot, trigger):
@@ -1050,7 +1049,7 @@ def delGS(bot, trigger):
         ).fetchall()
         bot.say("All nicks for " + trigger.group(3) + " have been purged.")
     except:
-        bot.say("Ugh... Something blew up. Help me Operator873.")
+        bot.say("Ugh... Something blew up. Help me " + bot.settings.core.owner)
 
 
 @plugin.require_chanmsg(message="This message must be used in the channel")

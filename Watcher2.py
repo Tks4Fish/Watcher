@@ -3,11 +3,13 @@ import threading
 import sqlite3
 import random
 import re
-from sopel import module
+from sopel import plugin
 from sseclient import SSEClient as EventSource
 
 
 DB = "wiki.db"
+BOTADMINMSG = "This command is only available to the bot admins."
+CHANCMDMSG = "This message must be used in a channel."
 
 
 def setup(bot):
@@ -67,7 +69,7 @@ def log_send(bot, change):
 
     try:
         gs_list = c.execute(
-            """SELECT account FROM globalsysops WHERE account="%s";""" % gs
+            """SELECT account FROM globalsysops WHERE account=?;""", (gs,)
         ).fetchall()
     except:
         pass
@@ -189,7 +191,7 @@ def check_gswiki(project):
     c = db.cursor()
 
     check = c.execute(
-        """SELECT * FROM GSwikis WHERE project="%s";""" % project
+        """SELECT * FROM GSwikis WHERE project=?;""", (project,)
     ).fetchall()
 
     db.close()
@@ -259,7 +261,7 @@ def checkpage(change):
 
     db.close()
 
-    if len(proj_exists) > 0:
+    if proj_exists is not None and len(proj_exists) > 0:
         sendLog["watcher"] = True
 
     if len(stalk_exists) > 0:
@@ -300,7 +302,7 @@ def global_edit(bot, change):
 
     try:
         check = c.execute(
-            """SELECT * FROM global_watch where title="%s";""" % (title)
+            """SELECT * FROM global_watch where title=?;""", (title,)
         ).fetchall()
     except:
         return
@@ -323,8 +325,8 @@ def global_edit(bot, change):
         for chan in channels:
             nicks = ""
             pgNicks = c.execute(
-                'SELECT nick from global_watch where title="%s" and namespace="%s" and channel="%s" and notify="on";'
-                % (title, chNamespace, chan)
+                '''SELECT nick from global_watch where title=? and namespace=? and channel=? and notify="on";''',
+                (title, chNamespace, chan)
             ).fetchall()
 
             if len(pgNicks) > 0:
@@ -412,13 +414,17 @@ def edit_send(bot, change):
     editor = editor[:2] + space + editor[2:]
     check = None
 
+    # Band aid SQL injection prevention. Not a pretty fix
+    # This will always only be a wiki name ie enwiki, ptwiki, etc
+    # The only source is the EventStream so can be considered "safe"
+    checkquery = """SELECT * FROM %s where page=?;""" % proj
+    nickquery = """SELECT nick from %s where page=? and channel=? and notify="on";""" % proj
+
     db = sqlite3.connect(DB)
     c = db.cursor()
 
     try:
-        check = c.execute(
-            """SELECT * FROM %s where page="%s";""" % (proj, title)
-        ).fetchall()
+        check = c.execute(checkquery, (title,)).fetchall()
     except:
         return
 
@@ -432,10 +438,7 @@ def edit_send(bot, change):
 
         for chan in channels:
             nicks = ""
-            pgNicks = c.execute(
-                'SELECT nick from %s where page="%s" and channel="%s" and notify="on";'
-                % (proj, title, chan)
-            ).fetchall()
+            pgNicks = c.execute(nickquery, (title, chan)).fetchall()
 
             if len(pgNicks) > 0:
                 for nick in pgNicks:
@@ -514,7 +517,7 @@ def check_hush(channel):
     c = db.cursor()
 
     hushCheck = c.execute(
-        """SELECT * FROM hushchannels WHERE channel="%s";""" % channel
+        """SELECT * FROM hushchannels WHERE channel=?;""", (channel,)
     ).fetchall()
 
     db.close()
@@ -526,15 +529,13 @@ def check_hush(channel):
 
 
 def watcherAdd(msg, nick, chan):
+    checkquery = """SELECT count(*) FROM sqlite_master WHERE type="table" AND name=?;"""
     db = sqlite3.connect(DB)
     c = db.cursor()
 
     action, project, page = msg.split(" ", 2)
 
-    checkTable = c.execute(
-        """SELECT count(*) FROM sqlite_master WHERE type="table" AND name="%s";"""
-        % project
-    ).fetchone()
+    checkTable = c.execute(checkquery, (project,)).fetchone()
     if checkTable[0] == 0:
         try:
             c.execute(
@@ -544,22 +545,19 @@ def watcherAdd(msg, nick, chan):
             db.commit()
         except Exception as e:
             response = (
-                "Ugh... Something blew up creating the table. Operator873 help me. "
+                "Ugh... Something blew up creating the table. " + bot.settings.core.owner + " help me. "
                 + str(e)
             )
             db.close()
             return response
 
         # Check to see if we have the table
-        check = c.execute(
-            """SELECT count(*) FROM sqlite_master WHERE type="table" AND name="%s";"""
-            % project
-        ).fetchone()
+        check = c.execute(checkquery, (project,)).fetchone()
         if check[0] == 0:
             response = (
                 "Ugh... Something blew up finding the new table: ("
                 + check
-                + ") Operator873 help me."
+                + ") " + bot.settings.core.owner + " help me."
             )
             db.close()
             return response
@@ -579,7 +577,7 @@ def watcherAdd(msg, nick, chan):
             response = (
                 "Ugh... Something blew up adding the page to the table: "
                 + str(e)
-                + ". Operator873 help me."
+                + ". " + bot.settings.core.owner + " help me."
             )
             db.close()
             return response
@@ -632,7 +630,7 @@ def watcherDel(msg, nick, chan):
                 % (nick, page, project)
             )
         except:
-            response = "Ugh... Something blew up. Operator873 help me."
+            response = "Ugh... Something blew up. " + bot.settings.core.owner + " help me."
     else:
         response = (
             "%s: it doesn't look like I'm reporting changes to %s on %s in this channel for you."
@@ -674,19 +672,6 @@ def watcherPing(msg, nick, chan):
     return response
 
 
-def watcherList(nick, chan):
-    response = {
-        "result": False,
-        "data": []
-    }
-
-    db = sqlite3.connect(DB)
-    c = db.cursor()
-
-    pages = c.execute('''SELECT ''')
-
-
-
 def globalWatcherAdd(msg, nick, chan):
     # !globalwatch add namespaceid title
     db = sqlite3.connect(DB)
@@ -710,7 +695,7 @@ def globalWatcherAdd(msg, nick, chan):
             response = (
                 "Ugh... Something blew up adding the page to the table: "
                 + str(e)
-                + ". Operator873 help me."
+                + ". " + bot.settings.core.owner + " help me."
             )
             db.close()
             return response
@@ -782,7 +767,7 @@ def globalWatcherDel(msg, nick, chan):
                 + "."
             )
         else:
-            response = "Confirmation failed. Pinging Operator873"
+            response = "Confirmation failed. Pinging " + bot.settings.core.owner
     else:
         response = (
             nick
@@ -828,7 +813,76 @@ def globalWatcherPing(msg, nick, chan):
     return response
 
 
-@module.commands("speak")
+@plugin.require_admin(message=BOTADMINMSG)
+@plugin.require_chanmsg(message=CHANCMDMSG)
+@plugin.command("feedadmin")
+def feedadmin(bot, trigger):
+    # !feedadmin {add/del/list} <target>
+    checkquery = """SELECT nick FROM feed_admins WHERE nick=? AND channel=?;"""
+    insertnew = """INSERT INTO feed_admins VALUES(?, ?);"""
+    deladmin = """DELETE FROM feed_admins WHERE nick=? AND channel=?;"""
+    badcommand = "Invalid command. !feedadmin {add/del/list} <targetAccount>"
+
+    db = sqlite3.connect(DB)
+    c = db.cursor()
+
+    try:
+        action, target = trigger.group(2).split(' ', 1)
+    except ValueError:
+        db.close()
+        bot.say(badcommand)
+        return
+
+    if action.lower() == "add":
+        check = c.execute(checkquery, (target, trigger.sender)).fetchall()
+
+        if len(check) == 0:
+            c.execute(insertnew, (target, trigger.sender))
+            db.commit()
+
+            checkagain = c.execute(checkquery, (target, trigger.sender)).fetchall()
+
+            if len(checkagain) > 0:
+                bot.say(target + " added as a feed admin in " + trigger.sender)
+            else:
+                bot.say("Error inserting new feed admin. Notifying " + bot.settings.core.owner)
+        else:
+            db.close()
+            bot.say(target + " is already a feed_admin in this channel.")
+            return
+
+    elif action.lower() == "del":
+        check = c.execute(checkquery, (target, trigger.sender)).fetchall()
+
+        if len(check) >= 1:
+            c.execute(deladmin, (target, trigger.sender))
+            db.commit()
+
+            checkagain = c.execute(checkquery, (target, trigger.sender)).fetchall()
+
+            if len(checkagain) == 0:
+                bot.say(target + " removed from feed admins in " + trigger.sender)
+            else:
+                bot.say("Error removing feed admin. Notifying " + bot.settings.core.owner)
+        else:
+            bot.say(target + " doesn't appear to be a feed admin in this channel.")
+
+    elif action.lower() == "list":
+        check = c.execute (
+            """SELECT nick FROM feed_admins WHERE channel=?;""", (trigger.sender,)
+        ).fetchall()
+
+        for nick in check:
+            admins = admins + nick[0] + " "
+
+        bot.say("The following accounts have feed admin in this channel: " + admins)
+
+    else:
+        bot.say(badcommand)
+
+    db.close()
+
+@plugin.command("speak")
 def watcherSpeak(bot, trigger):
     db = sqlite3.connect(DB)
     c = db.cursor()
@@ -839,41 +893,34 @@ def watcherSpeak(bot, trigger):
 
     if len(doesExist) > 0:
         try:
-            if (
-                trigger.nick in
+            if len(c.execute("""SELECT nick FROM feed_admins WHERE nick=? AND channel=?;""", (trigger.account, trigger.sender)).fetchall()) > 0:
                 c.execute(
-                    """SELECT nick from feed_admins where channel=?;""", (trigger.sender,)
-                ).fetchall()
-            ):
-                c.execute(
-                    """DELETE FROM hushchannels WHERE channel=?;""", (trigger.sender)
+                    """DELETE FROM hushchannels WHERE channel=?;""", (trigger.sender,)
                 )
                 db.commit()
                 bot.say("Alright! Back to business.")
             else:
                 bot.say("You're not authorized to execute this command.")
         except:
-            bot.say("Ugh... something blew up. Help me Operator873")
+            bot.say("Ugh... something blew up. Help me " + bot.settings.core.owner)
         finally:
             db.close()
     else:
+        db.close()
         bot.say(trigger.nick + ": I'm already in 'speak' mode.")
 
 
-@module.commands("hush")
-@module.commands("mute")
+@plugin.command("hush")
+@plugin.command("mute")
 def watcherHush(bot, trigger):
-
+    import time
     db = sqlite3.connect(DB)
     c = db.cursor()
-
-    import time
-
     now = time.time()
     timestamp = time.ctime(now)
 
     doesExist = c.execute(
-        """SELECT * FROM hushchannels WHERE channel="%s";""" % trigger.sender
+        """SELECT * FROM hushchannels WHERE channel=?;""", (trigger.sender,)
     ).fetchall()
 
     if len(doesExist) > 0:
@@ -886,38 +933,31 @@ def watcherHush(bot, trigger):
         if (
             trigger.sender == "#wikimedia-gs-internal"
             or trigger.sender == "#wikimedia-gs"
-            or trigger.sender == "##OperTestBed"
         ):
             isGS = c.execute(
-                """SELECT account from globalsysops where nick="%s";""" % trigger.nick
+                """SELECT account from globalsysops where nick=?;""", (trigger.nick,)
             ).fetchall()
             if len(isGS) > 0:
                 try:
                     c.execute(
                         """INSERT INTO hushchannels VALUES("%s", "%s", "%s");"""
-                        % (trigger.sender, trigger.nick, timestamp)
+                        % (trigger.sender, trigger.account, timestamp)
                     )
                     db.commit()
                     check = c.execute(
-                        """SELECT * FROM hushchannels WHERE channel="%s";"""
-                        % trigger.sender
+                        """SELECT * FROM hushchannels WHERE channel=?;""", (trigger.sender,)
                     ).fetchall()[0]
                     chan, nick, time = check
                     bot.say(nick + " hushed! " + time)
                     db.close()
                 except:
-                    bot.say("Ugh... something blew up. Help me Operator873")
+                    bot.say("Ugh... something blew up. Help me " + bot.settings.core.owner)
 
-        elif (
-            trigger.nick in
-            c.execute(
-                """SELECT nick from feed_admins where channel=?;""", (trigger.sender,)
-            ).fetchall()
-        ):
+        elif len(c.execute("""SELECT nick FROM feed_admins WHERE nick=? AND channel=?;""", (trigger.account, trigger.sender)).fetchall()) > 0:
             try:
                 c.execute(
                     """INSERT INTO hushchannels VALUES(?, ?, ?);""",
-                    (trigger.sender, trigger.nick, timestamp)
+                    (trigger.sender, trigger.account, timestamp)
                 )
                 db.commit()
                 check = c.execute(
@@ -928,16 +968,14 @@ def watcherHush(bot, trigger):
                 bot.say(nick + " hushed! " + time)
                 db.close()
             except:
-                bot.say("Ugh... something blew up. Help me Operator873")
+                bot.say("Ugh... something blew up. Help me " + bot.settings.core.owner)
 
         else:
             bot.say("You're not authorized to execute this command.")
 
 
-@module.require_admin(
-    message="This function is only available to Operator873 and bot admins."
-)
-@module.commands("watchstart")
+@plugin.require_admin(message=BOTADMINMSG)
+@plugin.command("watchstart")
 def start_listener(bot, trigger):
     if "wikistream_listener" not in bot.memory:
         stop_event = threading.Event()
@@ -951,7 +989,7 @@ def start_listener(bot, trigger):
     bot.say("Listening to EventStream...")
 
 
-@module.interval(120)
+@plugin.interval(120)
 def checkListener(bot):
     if bot.memory["wikistream_listener"].is_alive() is not True:
         del bot.memory["wikistream_listener"]
@@ -967,15 +1005,12 @@ def checkListener(bot):
 
         bot.memory["wikistream_listener"] = listen
         bot.memory["wikistream_listener"].start()
-        # bot.say("Restarted listener", "Operator873")
     else:
         pass
 
 
-@module.require_admin(
-    message="This function is only available to Operator873 and bot admins."
-)
-@module.commands("watchstatus")
+@plugin.require_admin(message=BOTADMINMSG)
+@plugin.command("watchstatus")
 def watchStatus(bot, trigger):
     if (
         "wikistream_listener" in bot.memory
@@ -988,10 +1023,8 @@ def watchStatus(bot, trigger):
     bot.say(msg)
 
 
-@module.require_admin(
-    message="This function is only available to Operator873 and bot admins."
-)
-@module.commands("watchstop")
+@plugin.require_admin(message=BOTADMINMSG)
+@plugin.command("watchstop")
 def watchStop(bot, trigger):
     if "wikistream_listener" not in bot.memory:
         bot.say("Listener isn't running.")
@@ -1004,20 +1037,17 @@ def watchStop(bot, trigger):
             bot.say(str(e))
 
 
-@module.require_admin(
-    message="This function is only available to Operator873 and bot admins."
-)
-@module.commands("addmember")
+@plugin.require_admin(message=BOTADMINMSG)
+@plugin.command("addmember")
 def addGS(bot, trigger):
     db = sqlite3.connect(DB)
     c = db.cursor()
     c.execute(
-        """INSERT INTO globalsysops VALUES("%s", "%s");"""
-        % (trigger.group(3), trigger.group(4))
+        """INSERT INTO globalsysops VALUES(?, ?);""", (trigger.group(3), trigger.group(4))
     )
     db.commit()
     nickCheck = c.execute(
-        """SELECT nick FROM globalsysops where account="%s";""" % trigger.group(4)
+        """SELECT nick FROM globalsysops where account=?;""", (trigger.group(4),)
     ).fetchall()
     nicks = ""
     for nick in nickCheck:
@@ -1034,27 +1064,25 @@ def addGS(bot, trigger):
     )
 
 
-@module.require_admin(
-    message="This function is only available to Operator873 and bot admins."
-)
-@module.commands("removemember")
+@plugin.require_admin(message=BOTADMINMSG)
+@plugin.command("removemember")
 def delGS(bot, trigger):
     db = sqlite3.connect(DB)
     c = db.cursor()
-    c.execute("""DELETE FROM globalsysops WHERE account="%s";""" % trigger.group(3))
+    c.execute("""DELETE FROM globalsysops WHERE account=?;""", (trigger.group(3),))
     db.commit()
     checkWork = None
     try:
         checkWork = c.execute(
-            """SELECT nick FROM globalsysops WHERE account="%s";""" % trigger.group(3)
+            """SELECT nick FROM globalsysops WHERE account=?;""", (trigger.group(3),)
         ).fetchall()
         bot.say("All nicks for " + trigger.group(3) + " have been purged.")
     except:
-        bot.say("Ugh... Something blew up. Help me Operator873.")
+        bot.say("Ugh... Something blew up. Help me " + bot.settings.core.owner)
 
 
-@module.require_chanmsg(message="This message must be used in the channel")
-@module.commands("watch")
+@plugin.require_chanmsg(message=CHANCMDMSG)
+@plugin.command("watch")
 def watch(bot, trigger):
     watchAction = trigger.group(3)
     if watchAction == "add" or watchAction == "Add" or watchAction == "+":
@@ -1078,8 +1106,8 @@ def watch(bot, trigger):
 
 # !globalwatch ping on namespaceid title
 # !globalwatch add namespaceid title
-@module.require_chanmsg(message="This message must be used in the channel")
-@module.commands("globalwatch")
+@plugin.require_chanmsg(message=CHANCMDMSG)
+@plugin.command("globalwatch")
 def gwatch(bot, trigger):
     watchAction = trigger.group(3)
     if watchAction == "add" or watchAction == "Add" or watchAction == "+":
@@ -1109,8 +1137,8 @@ def gwatch(bot, trigger):
         bot.say("I don't recognize that command. Options are: add, del, & ping")
 
 
-@module.require_chanmsg(message="This message must be used in the channel")
-@module.commands("namespace")
+@plugin.require_chanmsg(message=CHANCMDMSG)
+@plugin.command("namespace")
 def namespaces(bot, trigger):
     listSpaces = {
         "0": "Article",

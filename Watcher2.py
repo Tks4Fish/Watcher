@@ -672,19 +672,6 @@ def watcherPing(msg, nick, chan):
     return response
 
 
-def watcherList(nick, chan):
-    response = {
-        "result": False,
-        "data": []
-    }
-
-    db = sqlite3.connect(DB)
-    c = db.cursor()
-
-    pages = c.execute('''SELECT ''')
-
-
-
 def globalWatcherAdd(msg, nick, chan):
     # !globalwatch add namespaceid title
     db = sqlite3.connect(DB)

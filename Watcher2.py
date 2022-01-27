@@ -2,7 +2,6 @@ import json
 import threading
 import sqlite3
 import random
-import time
 import re
 from sopel import plugin
 from sseclient import SSEClient as EventSource
@@ -262,7 +261,7 @@ def checkpage(change):
 
     db.close()
 
-    if len(proj_exists) > 0:
+    if proj_exists is not None and len(proj_exists) > 0:
         sendLog["watcher"] = True
 
     if len(stalk_exists) > 0:
@@ -907,12 +906,7 @@ def watcherSpeak(bot, trigger):
 
     if len(doesExist) > 0:
         try:
-            if (
-                trigger.account in
-                c.execute(
-                    """SELECT nick from feed_admins where channel=?;""", (trigger.sender,)
-                ).fetchall()
-            ):
+            if len(c.execute("""SELECT nick FROM feed_admins WHERE nick=? AND channel=?;""", (trigger.account, trigger.sender)).fetchall()) > 0:
                 c.execute(
                     """DELETE FROM hushchannels WHERE channel=?;""", (trigger.sender,)
                 )
@@ -932,7 +926,7 @@ def watcherSpeak(bot, trigger):
 @plugin.command("hush")
 @plugin.command("mute")
 def watcherHush(bot, trigger):
-
+    import time
     db = sqlite3.connect(DB)
     c = db.cursor()
     now = time.time()
@@ -972,12 +966,7 @@ def watcherHush(bot, trigger):
                 except:
                     bot.say("Ugh... something blew up. Help me " + bot.settings.core.owner)
 
-        elif (
-            trigger.account in
-            c.execute(
-                """SELECT nick from feed_admins where channel=?;""", (trigger.sender,)
-            ).fetchall()
-        ):
+        elif len(c.execute("""SELECT nick FROM feed_admins WHERE nick=? AND channel=?;""", (trigger.account, trigger.sender)).fetchall()) > 0:
             try:
                 c.execute(
                     """INSERT INTO hushchannels VALUES(?, ?, ?);""",
